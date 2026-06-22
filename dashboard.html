@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - MyControlPanel</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="assets/css/app.css?v=single-cloud-2">
+</head>
+<body>
+  <div class="app-shell no-sidebar">
+    <header class="app-header">
+      <a class="brand brand-inline" href="dashboard.html"><span class="brand-mark"><i class="fa-solid fa-server"></i></span><div><strong>MyControlPanel</strong><small>Linux Hosting Panel</small></div></a>
+      <nav class="top-nav" aria-label="Navigasi halaman"><a class="active" href="dashboard.html"><i class="fa-solid fa-gauge"></i><span>Dashboard</span></a><a href="index.html"><i class="fa-solid fa-globe"></i><span>Websites</span></a></nav>
+      <div class="auth-actions"><span><i class="fa-solid fa-user"></i> <b data-auth-user>admin</b></span><button class="ghost-btn compact" type="button" data-logout><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></div>
+    </header>
+    <main class="main">
+      <header class="topbar"><div><p class="eyebrow">Server Overview</p><h1>Dashboard</h1></div><div class="top-actions"><button class="icon-btn" type="button" title="Refresh"><i class="fa-solid fa-rotate"></i></button><button class="ghost-btn" type="button" id="openCli"><i class="fa-solid fa-terminal"></i><span>Open CLI</span></button></div></header>
+      <section class="summary-strip" aria-label="Ringkasan server">
+        <div class="metric"><span class="metric-icon green"><i class="fa-solid fa-globe"></i></span><div><small>Websites</small><strong id="dashboardSites">6</strong></div></div>
+        <div class="metric"><span class="metric-icon blue"><i class="fa-solid fa-database"></i></span><div><small>Databases</small><strong>11</strong></div></div>
+        <div class="metric"><span class="metric-icon amber"><i class="fa-solid fa-clock"></i></span><div><small>Uptime</small><strong>12d 08h</strong></div></div>
+        <div class="metric"><span class="metric-icon red"><i class="fa-solid fa-shield-halved"></i></span><div><small>Security</small><strong>Good</strong></div></div>
+      </section>
+      <section class="dashboard-grid">
+        <article class="resource-card"><div class="resource-head"><div><h3>CPU Usage</h3><small>4 cores, load average 0.82</small></div><strong>24%</strong></div><div class="donut" style="--value:24; --color:#2563eb"><span>24%</span></div><div class="spark-bars"><i style="height:28%"></i><i style="height:42%"></i><i style="height:35%"></i><i style="height:55%"></i><i style="height:40%"></i><i style="height:30%"></i></div></article>
+        <article class="resource-card"><div class="resource-head"><div><h3>RAM Usage</h3><small>1.8 GB dari 8 GB</small></div><strong>22%</strong></div><div class="donut" style="--value:22; --color:#16a34a"><span>22%</span></div><div class="resource-meter"><span style="width:22%"></span></div></article>
+        <article class="resource-card"><div class="resource-head"><div><h3>Disk Usage</h3><small>46 GB dari 160 GB</small></div><strong>29%</strong></div><div class="donut" style="--value:29; --color:#d97706"><span>29%</span></div><div class="disk-list"><div><span>/</span><b>29%</b></div><div><span>/home</span><b>34%</b></div><div><span>/backup</span><b>18%</b></div></div></article>
+        <article class="resource-card"><div class="resource-head"><div><h3>Network</h3><small>Realtime traffic</small></div><strong>18 Mbps</strong></div><div class="network-chart"><i style="height:20%"></i><i style="height:48%"></i><i style="height:35%"></i><i style="height:62%"></i><i style="height:44%"></i><i style="height:76%"></i></div><div class="network-row"><span>In 12 Mbps</span><span>Out 6 Mbps</span></div></article>
+      </section>
+      <section class="dashboard-bottom"><article class="service-panel"><h3>Services</h3><div class="service-row"><span>Nginx</span><b class="ok">Running</b></div><div class="service-row"><span>PHP-FPM</span><b class="ok">Running</b></div><div class="service-row"><span>MySQL</span><b class="ok">Running</b></div><div class="service-row"><span>PostgreSQL</span><b class="ok">Running</b></div></article><article class="service-panel"><h3>Recent Activity</h3><div class="activity-row"><i class="fa-solid fa-plus"></i><span>Website dsmartlampung.com updated</span><small>2m</small></div><div class="activity-row"><i class="fa-solid fa-lock"></i><span>SSL renewed</span><small>15m</small></div></article></section>
+    </main>
+  </div>
+  <div class="modal-backdrop" id="cliModal" aria-hidden="true"><div class="modal terminal-modal" role="dialog" aria-modal="true" aria-labelledby="cliModalTitle"><div class="modal-head cli-head"><h2 id="cliModalTitle"><i class="fa-solid fa-terminal"></i> Terminal CLI</h2><button class="icon-btn" type="button" id="closeCli" title="Tutup"><i class="fa-solid fa-xmark"></i></button></div><div class="cli-window"><pre id="cliOutput">mycp@server:~$ mycp status
+nginx          running
+php-fpm        running
+mysql          running
+postgresql     running
+
+mycp@server:~$ _</pre><form id="cliForm" class="cli-form"><span>mycp@server:~$</span><input id="cliCommand" autocomplete="off" placeholder="ketik command, contoh: mycp sites:list"></form></div></div></div>
+  <script src="assets/js/auth.js?v=login-2"></script>
+  <script src="assets/js/site-data.js?v=single-cloud-1"></script>
+  <script src="assets/js/dashboard.js?v=single-cloud-4"></script>
+</body>
+</html>
