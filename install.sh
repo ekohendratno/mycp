@@ -7,9 +7,11 @@ APP_USER="${APP_USER:-srv}"
 APP_PASSWORD="${APP_PASSWORD:-srV@1234}"
 APP_DIR="${APP_DIR:-/opt/${APP_SLUG}}"
 APP_PUBLIC_DIR="${APP_PUBLIC_DIR:-${APP_DIR}/public}"
+APP_SCRIPTS_DIR="${APP_SCRIPTS_DIR:-${APP_DIR}/scripts}"
 NGINX_SITE="${NGINX_SITE:-${APP_SLUG}}"
 SERVER_NAME="${SERVER_NAME:-_}"
 PANEL_PORT="${PANEL_PORT:-8089}"
+REPO_URL="${REPO_URL:-https://github.com/ekohendratno/mycp/archive/refs/heads/main.zip}"
 
 log() {
   printf '\033[1;32m[mycp]\033[0m %s\n' "$*"
@@ -103,18 +105,40 @@ create_panel_user() {
 
 copy_panel_files() {
   local source_dir
+  local temp_dir=""
   source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+  if [ ! -f "${source_dir}/index.html" ] || [ ! -d "${source_dir}/assets" ]; then
+    log "Source panel tidak ditemukan di folder installer, download dari GitHub"
+    temp_dir="$(mktemp -d)"
+    curl -fsSL "${REPO_URL}" -o "${temp_dir}/mycp.zip"
+    unzip -q "${temp_dir}/mycp.zip" -d "${temp_dir}"
+    source_dir="$(find "${temp_dir}" -maxdepth 1 -type d -name 'mycp-*' | head -n 1)"
+    [ -n "${source_dir}" ] || fail "Gagal membaca source panel dari archive GitHub."
+  fi
 
   log "Copy panel ke ${APP_PUBLIC_DIR}"
   mkdir -p "${APP_PUBLIC_DIR}"
   rsync -a --delete \
     --exclude ".git" \
     --exclude "install.sh" \
+    --exclude "scripts" \
     "${source_dir}/" "${APP_PUBLIC_DIR}/"
 
   chown -R www-data:www-data "${APP_DIR}"
   find "${APP_DIR}" -type d -exec chmod 755 {} \;
   find "${APP_DIR}" -type f -exec chmod 644 {} \;
+
+  if [ -d "${source_dir}/scripts" ]; then
+    mkdir -p "${APP_SCRIPTS_DIR}"
+    rsync -a --delete "${source_dir}/scripts/" "${APP_SCRIPTS_DIR}/"
+    chown -R root:root "${APP_SCRIPTS_DIR}"
+    find "${APP_SCRIPTS_DIR}" -type d -exec chmod 755 {} \;
+    find "${APP_SCRIPTS_DIR}" -type f -name "*.sh" -exec chmod 755 {} \;
+    find "${APP_SCRIPTS_DIR}" -type f ! -name "*.sh" -exec chmod 644 {} \;
+  fi
+
+  [ -z "${temp_dir}" ] || rm -rf "${temp_dir}"
 }
 
 write_nginx_config() {
@@ -161,29 +185,75 @@ configure_firewall() {
 
 write_helper_command() {
   log "Buat command mycp"
-  cat >/usr/local/bin/mycp <<'MYCP'
+  cat >/usr/local/bin/mycp <<MYCP
 #!/usr/bin/env bash
 set -euo pipefail
 
-case "${1:-status}" in
+SCRIPTS_DIR="${APP_SCRIPTS_DIR}"
+COMMAND="\${1:-status}"
+[ "\$#" -gt 0 ] && shift || true
+
+case "\${COMMAND}" in
   status)
-    echo "MyControlPanel status"
-    for svc in nginx php*-fpm mariadb postgresql vsftpd; do
-      service ${svc} status >/dev/null 2>&1 && echo "${svc} running" || true
-    done
+    "\${SCRIPTS_DIR}/status.sh" "\$@"
+    ;;
+  site:create)
+    "\${SCRIPTS_DIR}/site-create.sh" "\$@"
+    ;;
+  site:list)
+    "\${SCRIPTS_DIR}/site-list.sh" "\$@"
+    ;;
+  site:update-domain)
+    "\${SCRIPTS_DIR}/site-update-domain.sh" "\$@"
+    ;;
+  site:update-runtime)
+    "\${SCRIPTS_DIR}/site-update-runtime.sh" "\$@"
+    ;;
+  site:password)
+    "\${SCRIPTS_DIR}/site-change-password.sh" "\$@"
+    ;;
+  site:delete)
+    "\${SCRIPTS_DIR}/site-delete.sh" "\$@"
+    ;;
+  vhost:save)
+    "\${SCRIPTS_DIR}/vhost-save.sh" "\$@"
+    ;;
+  ssl:issue)
+    "\${SCRIPTS_DIR}/ssl-issue.sh" "\$@"
+    ;;
+  db:create)
+    "\${SCRIPTS_DIR}/database-create.sh" "\$@"
+    ;;
+  ftp:create)
+    "\${SCRIPTS_DIR}/ftp-create.sh" "\$@"
+    ;;
+  cron:add)
+    "\${SCRIPTS_DIR}/cron-add.sh" "\$@"
+    ;;
+  file:write)
+    "\${SCRIPTS_DIR}/file-write.sh" "\$@"
+    ;;
+  file:list)
+    "\${SCRIPTS_DIR}/file-list.sh" "\$@"
+    ;;
+  folder:create)
+    "\${SCRIPTS_DIR}/folder-create.sh" "\$@"
+    ;;
+  log:read)
+    "\${SCRIPTS_DIR}/log-read.sh" "\$@"
     ;;
   path)
     echo "/opt/mycontrolpanel/public"
     ;;
   url)
-    host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    echo "http://${host_ip:-127.0.0.1}:8089/login.html"
+    host_ip="\$(hostname -I 2>/dev/null | awk '{print \$1}')"
+    echo "http://\${host_ip:-127.0.0.1}:${PANEL_PORT}/login.html"
     ;;
   restart)
     service nginx restart
     ;;
   *)
-    echo "Usage: mycp {status|path|url|restart}"
+    echo "Usage: mycp {status|site:list|site:create|site:update-domain|site:update-runtime|site:password|site:delete|vhost:save|ssl:issue|db:create|ftp:create|cron:add|file:list|file:write|folder:create|log:read|path|url|restart}"
     exit 1
     ;;
 esac
@@ -204,6 +274,7 @@ print_done() {
   printf 'Login demo      : admin / admin123\n'
   printf 'Linux user      : %s / %s\n' "${APP_USER}" "${APP_PASSWORD}"
   printf 'Panel path      : %s\n' "${APP_PUBLIC_DIR}"
+  printf 'Scripts path    : %s\n' "${APP_SCRIPTS_DIR}"
   printf '\n'
   printf 'Command cek     : mycp status\n'
   printf 'Restart Nginx   : sudo mycp restart\n'
