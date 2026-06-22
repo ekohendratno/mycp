@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MyControlPanel</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="assets/css/app.css?v=single-cloud-2">
+</head>
+<body>
+  <div class="app-shell no-sidebar">
+    <header class="app-header">
+      <a class="brand brand-inline" href="dashboard.html">
+        <span class="brand-mark"><i class="fa-solid fa-server"></i></span>
+        <div>
+          <strong>MyControlPanel</strong>
+          <small>Linux Hosting Panel</small>
+        </div>
+      </a>
+      <nav class="top-nav" aria-label="Navigasi halaman">
+        <a href="dashboard.html"><i class="fa-solid fa-gauge"></i><span>Dashboard</span></a>
+        <a class="active" href="index.html"><i class="fa-solid fa-globe"></i><span>Websites</span></a>
+      </nav>
+      <div class="auth-actions">
+        <span><i class="fa-solid fa-user"></i> <b data-auth-user>admin</b></span>
+        <button class="ghost-btn compact" type="button" data-logout><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button>
+      </div>
+    </header>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Workspace</p>
+          <h1>Websites</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" type="button" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+          <button class="primary-btn" type="button" id="openCreateSite">
+            <i class="fa-solid fa-plus"></i>
+            <span>Tambah Website</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="summary-strip" aria-label="Ringkasan server">
+        <div class="metric"><span class="metric-icon green"><i class="fa-solid fa-globe"></i></span><div><small>Total Website</small><strong id="totalSites">6</strong></div></div>
+        <div class="metric"><span class="metric-icon blue"><i class="fa-solid fa-shield-halved"></i></span><div><small>SSL Aktif</small><strong>5</strong></div></div>
+        <div class="metric"><span class="metric-icon amber"><i class="fa-solid fa-microchip"></i></span><div><small>CPU</small><strong>24%</strong></div></div>
+        <div class="metric"><span class="metric-icon red"><i class="fa-solid fa-memory"></i></span><div><small>RAM</small><strong>1.8 / 8 GB</strong></div></div>
+      </section>
+
+      <section class="workspace">
+        <div class="list-toolbar">
+          <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="siteSearch" type="search" placeholder="Cari domain, framework, atau status"></div>
+          <div class="segmented" role="group" aria-label="Filter website">
+            <button class="active" type="button" data-filter="all">Semua</button>
+            <button type="button" data-filter="running">Running</button>
+            <button type="button" data-filter="issue">Issue</button>
+          </div>
+        </div>
+        <div class="sites-list" id="sitesGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="createSiteModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="createSiteTitle">
+      <div class="modal-head">
+        <div><p class="eyebrow">Website Baru</p><h2 id="createSiteTitle">Tambah Website</h2></div>
+        <button class="icon-btn" type="button" id="closeCreateSite" title="Tutup"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="createSiteForm" class="create-form">
+        <label>Domain<input name="domain" required placeholder="example.com"></label>
+        <div class="form-grid"><label>Username<input name="username" required placeholder="example"></label><label>Password<input name="password" type="password" required placeholder="Minimal 8 karakter"></label></div>
+        <div class="form-grid"><label>Bahasa / Framework<select name="runtime"><option>PHP Native</option><option>CodeIgniter 3</option><option selected>CodeIgniter 4</option><option>Laravel</option><option>Node.js</option><option>Static HTML</option><option>Reverse Proxy</option></select></label><label>Versi PHP / Node<select name="version"><option selected>PHP 8.3</option><option>PHP 8.2</option><option>PHP 7.4</option><option>Node.js 20</option></select></label></div>
+        <div class="form-grid"><label>Database<select name="database"><option selected>MySQL</option><option>PostgreSQL</option><option>Tanpa Database</option></select></label><label>Port<input name="port" value="80" inputmode="numeric"></label></div>
+        <label>Document Root<input name="root" value="/home/username/htdocs"></label>
+        <div class="switch-grid">
+          <label class="switch"><input name="ssl" type="checkbox" checked><span></span>Aktifkan SSL</label>
+          <label class="switch"><input name="databaseCreate" type="checkbox" checked><span></span>Buat database otomatis</label>
+          <label class="switch"><input name="www" type="checkbox" checked><span></span>Alias www</label>
+          <label class="switch"><input name="tunnel" type="checkbox"><span></span>Cloudflare Tunnel</label>
+          <label class="switch"><input name="ftp" type="checkbox" checked><span></span>Aktifkan FTP</label>
+        </div>
+        <div class="modal-actions"><button class="ghost-btn" type="button" id="cancelCreateSite">Batal</button><button class="primary-btn" type="submit"><i class="fa-solid fa-rocket"></i><span>Buat Website</span></button></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="assets/js/auth.js?v=login-2"></script>
+  <script src="assets/js/site-data.js?v=single-cloud-1"></script>
+  <script src="assets/js/app.js?v=single-cloud-1"></script>
+</body>
+</html>
