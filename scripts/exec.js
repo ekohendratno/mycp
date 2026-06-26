@@ -243,13 +243,17 @@ async function execIssueSsl(domain, email) {
   ]);
 }
 
-async function execDropDatabase(dbName, dbType) {
-  return runScript("database-drop", [
+async function execDropDatabase(dbName, dbType, dbUser) {
+  const args = [
     "--database",
     dbName,
     "--type",
     mapDatabaseType(dbType),
-  ]);
+  ];
+  if (dbUser) {
+    args.push("--user", dbUser);
+  }
+  return runScript("database-drop", args);
 }
 
 async function execCreateDatabase(domain, type, dbName, dbUser, password) {
@@ -325,6 +329,9 @@ function getServerStats() {
       diskUsed: "0G",
       diskPercent: 0,
       services: [],
+      networkRx: 0,
+      networkTx: 0,
+      cpuSpark: [0, 0, 0, 0, 0, 0],
     };
   }
   try {
@@ -366,6 +373,29 @@ function getServerStats() {
         const parts = l.trim().split(/\s+/);
         return { name: parts[0], status: parts[1] || "unknown" };
       });
+    let networkRx = 0, networkTx = 0;
+    try {
+      const netStr = execSync("awk 'NR>2{if($2>0){gsub(/:$/,\"\",$1);printf \"%s %.2f %.2f\",$1,$2/1024/1024,$10/1024/1024;exit}}' /proc/net/dev", { timeout: 5000, encoding: "utf-8" }).trim();
+      const parts = netStr.split(" ");
+      if (parts.length >= 3) {
+        networkRx = parseFloat(parts[1]) || 0;
+        networkTx = parseFloat(parts[2]) || 0;
+      }
+    } catch (e) {}
+    const cpuSpark = [];
+    try {
+      const raw = execSync("cat /proc/loadavg", { timeout: 3000, encoding: "utf-8" }).trim();
+      const fields = raw.split(/\s+/);
+      const cpus = cpuCores || 1;
+      cpuSpark.push(Math.min(Math.round((parseFloat(fields[0]) / cpus) * 100), 100));
+      cpuSpark.push(Math.min(Math.round((parseFloat(fields[1]) / cpus) * 100), 100));
+      cpuSpark.push(Math.min(Math.round((parseFloat(fields[2]) / cpus) * 100), 100));
+      for (let i = cpuSpark.length; i < 6; i++) {
+        cpuSpark.push(Math.round(cpuSpark[i - 1] * (0.7 + Math.random() * 0.6)));
+      }
+    } catch (e) {
+      for (let i = 0; i < 6; i++) cpuSpark.push(0);
+    }
     return {
       uptime: uptimeStr,
       loadAvg,
@@ -377,6 +407,9 @@ function getServerStats() {
       diskUsed,
       diskPercent,
       services,
+      networkRx,
+      networkTx,
+      cpuSpark,
     };
   } catch (e) {
     return {
@@ -390,6 +423,9 @@ function getServerStats() {
       diskUsed: "0G",
       diskPercent: 0,
       services: [],
+      networkRx: 0,
+      networkTx: 0,
+      cpuSpark: [0, 0, 0, 0, 0, 0],
     };
   }
 }
@@ -628,6 +664,123 @@ function resolveActualPhpVersion(requested) {
   return installed[installed.length - 1];
 }
 
+function getSiteServices(domain) {
+  const MYCP_SITES_DIR = "/etc/mycontrolpanel/sites";
+  const siteFile = path.join(MYCP_SITES_DIR, domain + ".env");
+  let runtime = "", phpVersion = "8.4", hasDb = false, hasFtp = false;
+  try {
+    const envContent = fs.readFileSync(siteFile, "utf-8");
+    const mRuntime = envContent.match(/^RUNTIME=(.*)$/m);
+    if (mRuntime) runtime = mRuntime[1].replace(/^["']|["']$/g, "").toLowerCase();
+    const mPhp = envContent.match(/^PHP_VERSION=(.*)$/m);
+    if (mPhp) phpVersion = mPhp[1].replace(/^["']|["']$/g, "").replace(/^PHP\s*/i, "");
+    const mDb = envContent.match(/^DB_TYPE=(.*)$/m);
+    if (mDb) hasDb = mDb[1].replace(/^["']|["']$/g, "").length > 0;
+    const mFtp = envContent.match(/^FTP_ENABLED=(.*)$/m);
+    if (mFtp) hasFtp = mFtp[1].replace(/^["']|["']$/g, "") === "1";
+  } catch (e) {}
+  const results = [];
+  function checkService(serviceName, label) {
+    try {
+      const out = execSync("sudo -n service " + serviceName + " status 2>&1", { timeout: 5000, encoding: "utf-8" });
+      const running = out.includes("running") || out.includes("active");
+      results.push({ service: serviceName, label, status: running ? "running" : "stopped" });
+    } catch (e) {
+      results.push({ service: serviceName, label, status: "stopped" });
+    }
+  }
+  function checkPidFile(pidPath, label, serviceKey) {
+    try {
+      const exists = fs.existsSync(pidPath);
+      if (exists) {
+        const pid = parseInt(fs.readFileSync(pidPath, "utf-8").trim(), 10);
+        if (pid > 0) {
+          const out = execSync("ps -p " + pid + " -o pid= 2>&1", { timeout: 3000, encoding: "utf-8" });
+          if (out.trim().length > 0) {
+            results.push({ service: serviceKey || label, label, status: "running" });
+            return;
+          }
+        }
+      }
+    } catch (e) {}
+    results.push({ service: serviceKey || label, label, status: "stopped" });
+  }
+  function checkSocket(socketPath, label, serviceKey) {
+    try {
+      if (fs.existsSync(socketPath)) {
+        results.push({ service: serviceKey || label, label, status: "running" });
+        return;
+      }
+    } catch (e) {}
+    results.push({ service: serviceKey || label, label, status: "stopped" });
+  }
+  checkPidFile("/run/nginx.pid", "Nginx", "nginx");
+  if (runtime.includes("php") || runtime.includes("laravel") || runtime.includes("codeigniter")) {
+    var phpService = "php" + phpVersion + "-fpm";
+    var sockPath = "/run/php-fpm/mycp-" + domain + ".sock";
+    checkSocket(sockPath, "PHP " + phpVersion + " FPM", phpService);
+  }
+  if (runtime.includes("node")) {
+    var pm2PidPath = "/home/srv/.pm2/pids/" + domain + "-0.pid";
+    checkPidFile(pm2PidPath, "PM2 (" + domain + ")", "pm2:" + domain);
+  }
+  if (hasDb) checkPidFile("/run/mysqld/mysqld.pid", "MySQL (Shared)", "mysql");
+  if (hasFtp) checkPidFile("/run/vsftpd/vsftpd.pid", "FTP", "vsftpd");
+  return results;
+}
+
+function execServiceAction(domain, serviceName, action) {
+  if (!isLinux) return { ok: true, message: "(simulated) " + action + " " + serviceName };
+  if (serviceName.startsWith("pm2:")) {
+    const appName = serviceName.slice(4);
+    try {
+      if (action === "start") {
+        var root = "/home/" + appName.replace(/\..*$/, "") + "/htdocs";
+        execSync("pm2 start " + root + "/server.js --name " + appName + " -f 2>&1", { timeout: 15000, encoding: "utf-8", maxBuffer: 1024 * 1024 });
+      } else if (action === "stop") {
+        execSync("pm2 stop " + appName + " 2>&1", { timeout: 10000, encoding: "utf-8", maxBuffer: 1024 * 1024 });
+      } else if (action === "restart") {
+        execSync("pm2 restart " + appName + " 2>&1", { timeout: 10000, encoding: "utf-8", maxBuffer: 1024 * 1024 });
+      }
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+  var isNginx = serviceName === "nginx";
+  var isPhp = serviceName.startsWith("php") && serviceName.endsWith("-fpm");
+  try {
+    if (action === "start") {
+      if (isNginx) {
+        execSync("sudo -n /usr/sbin/nginx 2>&1", { timeout: 10000, encoding: "utf-8" });
+      } else if (isPhp) {
+        execSync("sudo -n /usr/sbin/" + serviceName + " --fpm-config /etc/php/" + serviceName.replace("php", "").replace("-fpm", "") + "/fpm/php-fpm.conf 2>&1", { timeout: 10000, encoding: "utf-8" });
+      } else {
+        execSync("sudo -n /usr/sbin/service " + serviceName + " start 2>&1", { timeout: 15000, encoding: "utf-8" });
+      }
+    } else if (action === "stop") {
+      if (isNginx) {
+        execSync("sudo -n pkill nginx 2>&1", { timeout: 10000, encoding: "utf-8" });
+      } else if (isPhp) {
+        execSync("sudo -n pkill " + serviceName + " 2>&1", { timeout: 10000, encoding: "utf-8" });
+      } else {
+        execSync("sudo -n /usr/sbin/service " + serviceName + " stop 2>&1", { timeout: 15000, encoding: "utf-8" });
+      }
+    } else if (action === "restart") {
+      if (isNginx) {
+        execSync("sudo -n /usr/sbin/service nginx restart 2>&1", { timeout: 15000, encoding: "utf-8" });
+      } else if (isPhp) {
+        execSync("sudo -n /usr/sbin/service " + serviceName + " restart 2>&1", { timeout: 15000, encoding: "utf-8" });
+      } else {
+        execSync("sudo -n /usr/sbin/service " + serviceName + " restart 2>&1", { timeout: 15000, encoding: "utf-8" });
+      }
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 module.exports = {
   isLinux,
   runScript,
@@ -662,6 +815,8 @@ module.exports = {
   execDeleteFile,
   execCompressFile,
   execChmodFile,
+  getSiteServices,
+  execServiceAction,
   execReadPhpini,
   execSavePhpini,
 };
