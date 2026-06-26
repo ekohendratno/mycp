@@ -9,6 +9,18 @@ CentOS / RHEL / AlmaLinux / Rocky, Fedora, Arch.
 
 ---
 
+## Screenshots
+
+| Dashboard | Detail Settings | File Manager |
+|:---:|:---:|:---:|
+| ![Dashboard](screenshot/dashboard.png) | ![Settings](screenshot/detail_setting.png) | ![File Manager](screenshot/detail_filemanager.png) |
+
+| File Editor | Website Preview |
+|:---:|:---:|
+| ![Editor](screenshot/detail_filemanager_edit.png) | ![Preview](screenshot/website.png) |
+
+---
+
 ## Fitur
 
 - **Multi-Runtime**: PHP Native, CodeIgniter 3/4, Laravel, Node.js, Static HTML, Reverse Proxy
