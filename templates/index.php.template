@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>__DOMAIN__</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+         background: #0f172a; color: #e2e8f0; margin: 0; padding: 60px 20px;
+         display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 14px;
+          padding: 36px 48px; box-shadow: 0 14px 36px rgba(0,0,0,0.35);
+          text-align: center; max-width: 640px; }
+  h1 { margin: 0 0 12px; font-size: 34px; color: #60a5fa; }
+  p.lead { font-size: 16px; color: #cbd5e1; margin: 0 0 24px; }
+  pre { background: #0b1220; border: 1px solid #334155; border-radius: 10px;
+        padding: 16px 20px; text-align: left; font-family: "JetBrains Mono", monospace;
+        font-size: 13px; color: #93c5fd; margin: 0; overflow-x: auto; }
+  small { display: block; margin-top: 20px; color: #64748b; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img src="https://placehold.co/64x64/1e293b/60a5fa?text=CP" alt="Logo" style="border-radius:12px;margin-bottom:16px">
+    <h1>Hello, world!</h1>
+    <p class="lead">Website <strong>__DOMAIN__</strong> berhasil dibuat oleh MyControlPanel.</p>
+    <pre><?php
+echo "PHP version : " . PHP_VERSION . PHP_EOL;
+echo "PHP SAPI    : " . PHP_SAPI . PHP_EOL;
+echo "Server      : " . ($_SERVER['SERVER_SOFTWARE'] ?? 'unknown') . PHP_EOL;
+echo "Document    : " . ($_SERVER['DOCUMENT_ROOT'] ?? '') . PHP_EOL;
+echo "Runtime     : " . ($_SERVER['SERVER_NAME'] ?? '') . PHP_EOL;
+echo "Time        : " . date('Y-m-d H:i:s T') . PHP_EOL;
+?></pre>
+    <small>Default landing page &mdash; replace dengan aplikasi Anda.</small>
+  </div>
+</body>
+</html>

@@ -1,12 +1,29 @@
 const loginForm = document.querySelector('#loginForm');
+const loginBtn = loginForm?.querySelector('button[type="submit"]');
 
-if (sessionStorage.getItem('mycp-auth') === '1') {
-  window.location.href = 'dashboard.html';
-}
-
-loginForm.addEventListener('submit', (event) => {
+loginForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  sessionStorage.setItem('mycp-auth', '1');
-  sessionStorage.setItem('mycp-user', loginForm.elements.username.value.trim() || 'admin');
-  window.location.href = 'dashboard.html';
+  loginBtn.disabled = true;
+  loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Login...</span>';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loginForm.elements.username.value.trim(),
+        password: loginForm.elements.password.value
+      })
+    });
+    if (res.ok) {
+      window.location.href = '/';
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Login gagal');
+    }
+  } catch (e) {
+    alert('Gagal terhubung ke server');
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i><span>Login</span>';
+  }
 });

@@ -5,3 +5,14 @@ node_modules/
 .env
 .env.*
 !.env.example
+*.env
+cookies.txt
+login.json
+php-put.json
+test-*.json
+test-api*.sh
+tmp/
+tmp_*.sh
+data/db.json
+server-wsl.log
+restart-clean.sh

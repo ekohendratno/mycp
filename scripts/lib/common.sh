@@ -8,6 +8,10 @@ log() {
   printf '[mycp] %s\n' "$*"
 }
 
+warn() {
+  printf '[mycp] WARN: %s\n' "$*" >&2
+}
+
 fail() {
   printf '[mycp] ERROR: %s\n' "$*" >&2
   exit 1
@@ -23,7 +27,7 @@ need_cmd() {
 
 ensure_state_dirs() {
   mkdir -p "${MYCP_SITES_DIR}"
-  chmod 700 "${MYCP_ETC_DIR}" "${MYCP_SITES_DIR}"
+  chmod 755 "${MYCP_ETC_DIR}" "${MYCP_SITES_DIR}"
 }
 
 valid_domain() {
@@ -71,7 +75,7 @@ save_site() {
   require_domain "${domain}"
   ensure_state_dirs
   file="$(site_file "${domain}")"
-  umask 077
+  umask 022
   cat >"${file}"
 }
 
@@ -81,6 +85,15 @@ restart_service() {
     systemctl restart "${service_name}"
   else
     service "${service_name}" restart
+  fi
+}
+
+service_restart() {
+  local service_name="$1"
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then
+    systemctl restart "${service_name}" 2>/dev/null || true
+  else
+    service "${service_name}" restart 2>/dev/null || true
   fi
 }
 

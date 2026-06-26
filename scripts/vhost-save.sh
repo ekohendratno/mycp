@@ -5,7 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
+READ_ONLY=""
 DOMAIN=""
+USERNAME=""
 ROOT_DIR=""
 RUNTIME="php"
 PHP_VERSION="8.3"
@@ -14,7 +16,9 @@ CUSTOM_CONFIG=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --read-only) READ_ONLY="1"; shift ;;
     --domain) DOMAIN="${2:-}"; shift 2 ;;
+    --user|--username) USERNAME="${2:-}"; shift 2 ;;
     --root) ROOT_DIR="${2:-}"; shift 2 ;;
     --runtime) RUNTIME="${2:-}"; shift 2 ;;
     --php-version) PHP_VERSION="${2:-}"; shift 2 ;;
@@ -25,11 +29,38 @@ while [ "$#" -gt 0 ]; do
 done
 
 require_root
-need_cmd nginx
 require_domain "${DOMAIN}"
-require_path "${ROOT_DIR}"
 
 CONF_PATH="/etc/nginx/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
+
+if [ -n "${READ_ONLY}" ]; then
+  [ -f "${CONF_PATH}" ] || { echo "# Vhost not found"; exit 0; }
+  cat "${CONF_PATH}"
+  exit 0
+fi
+
+# Derive ROOT_DIR from USERNAME when not provided, lalu validasi konsisten
+if [ -z "${ROOT_DIR}" ]; then
+  if [ -z "${USERNAME}" ]; then
+    fail "--root atau --username wajib diisi"
+  fi
+  ROOT_DIR="/home/${USERNAME}/htdocs"
+fi
+# Sanity check: ROOT_DIR harus berada di bawah /home/<username>/htdocs (kalau username ada)
+if [ -n "${USERNAME}" ]; then
+  case "${ROOT_DIR}" in
+    "/home/${USERNAME}/htdocs"|"/home/${USERNAME}/htdocs"/*) ;;
+    *) fail "ROOT_DIR (${ROOT_DIR}) tidak konsisten dengan USERNAME (${USERNAME}); harus /home/${USERNAME}/htdocs[/...]" ;;
+  esac
+fi
+
+need_cmd nginx
+require_path "${ROOT_DIR}"
+
+if [ "${RUNTIME}" = "laravel" ]; then
+  ROOT_DIR="${ROOT_DIR}/public"
+fi
+
 ENABLED_PATH="/etc/nginx/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}"
 
 if [ -n "${CUSTOM_CONFIG}" ]; then
@@ -38,7 +69,14 @@ if [ -n "${CUSTOM_CONFIG}" ]; then
 else
   case "${RUNTIME}" in
     php|laravel|codeigniter|ci4|ci3)
-      SOCKET="$(php_fpm_socket "${PHP_VERSION}")"
+      # Prioritaskan socket pool per-site (mycp-<domain>.sock) kalau tersedia,
+      # fallback ke socket global jika pool belum dibuat.
+      POOL_SOCKET="/run/php-fpm/mycp-${DOMAIN}.sock"
+      if [ -S "${POOL_SOCKET}" ]; then
+        SOCKET="${POOL_SOCKET}"
+      else
+        SOCKET="$(php_fpm_socket "${PHP_VERSION}")"
+      fi
       cat >"${CONF_PATH}" <<NGINX
 server {
     listen 80;
@@ -46,22 +84,67 @@ server {
     server_name ${DOMAIN} www.${DOMAIN};
 
     root ${ROOT_DIR};
-    index index.php index.html;
 
     access_log /var/log/nginx/${DOMAIN}.access.log;
     error_log /var/log/nginx/${DOMAIN}.error.log;
 
     location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
+        proxy_pass http://127.0.0.1:8088;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Forwarded-Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_hide_header X-Varnish;
+        proxy_redirect off;
+        proxy_max_temp_file_size 0;
+        proxy_connect_timeout      720;
+        proxy_send_timeout         720;
+        proxy_read_timeout         720;
+        proxy_buffer_size          128k;
+        proxy_buffers              4 256k;
+        proxy_busy_buffers_size    256k;
+        proxy_temp_file_write_size 256k;
     }
+
+    location ~* ^.+\.(css|js|jpg|jpeg|gif|png|ico|gz|svg|svgz|ttf|otf|woff|woff2|eot|mp4|ogg|ogv|webm|webp|zip|swf|map)$ {
+        add_header Access-Control-Allow-Origin "*";
+        expires max;
+        access_log off;
+    }
+
+    if (-f \$request_filename) {
+        break;
+    }
+}
+
+server {
+    listen 8088;
+    listen [::]:8088;
+    server_name ${DOMAIN} www.${DOMAIN};
+    root ${ROOT_DIR};
+
+    try_files \$uri \$uri/ /index.php?\$args;
+    index index.php index.html;
 
     location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
+        include fastcgi_params;
+        fastcgi_intercept_errors on;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        try_files \$uri =404;
+        fastcgi_read_timeout 3600;
+        fastcgi_send_timeout 3600;
+        fastcgi_param HTTPS "on";
         fastcgi_pass unix:${SOCKET};
+
+        # Tampilkan error PHP di browser (hanya untuk preview/dev)
+        # Untuk production, hapus baris ini atau set development=0
+        fastcgi_param PHP_VALUE "display_errors=1\nerror_reporting=E_ALL\nlog_errors=1";
+        fastcgi_param PHP_ADMIN_VALUE "development=1";
     }
 
-    location ~ /\. {
-        deny all;
+    if (-f \$request_filename) {
+        break;
     }
 }
 NGINX

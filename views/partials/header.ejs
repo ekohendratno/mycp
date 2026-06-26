@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title || 'MyControlPanel' %></title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/monokai.min.css">
+  <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="icon" href="/assets/img/logo.png" type="image/png">
+</head>
+<body>
+  <div class="app-shell no-sidebar">
+    <header class="app-header">
+      <a class="brand brand-inline" href="/dashboard">
+        <span class="brand-mark"><img src="/assets/img/logo.png" alt="Logo" style="height:38px;border-radius:8px"></span>
+      </a>
+      <nav class="top-nav" aria-label="Navigasi halaman">
+        <a href="/dashboard" class="<%= activeNav === 'dashboard' ? 'active' : '' %>"><i class="fa-solid fa-gauge"></i><span>Dashboard</span></a>
+        <a href="/" class="<%= activeNav === 'websites' ? 'active' : '' %>"><i class="fa-solid fa-globe"></i><span>Websites</span></a>
+      </nav>
+      <div class="auth-actions">
+        <span><i class="fa-solid fa-user"></i> <b data-auth-user>admin</b></span>
+        <button class="ghost-btn compact" type="button" data-logout><i class="fa-solid fa-right-from-bracket"></i></button>
+      </div>
+    </header>
+    <main class="main">
