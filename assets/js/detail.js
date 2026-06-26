@@ -777,6 +777,8 @@ function loadTabContent(tab) {
     loadCronJobs();
   } else if (tab === "ftp") {
     loadFtpAccounts();
+  } else if (tab === "services") {
+    loadServices();
   }
 }
 function switchTab(tab) {
@@ -848,6 +850,82 @@ function updateDetailVersionOptions(runtime, selected) {
     else if (runtime === "Reverse Proxy") versionLabel.textContent = "Type";
     else if (runtime === "Laravel") versionLabel.textContent = "Laravel Version";
     else versionLabel.textContent = "PHP Version";
+  }
+}
+
+async function loadServices() {
+  var tbody = document.querySelector("#serviceRows");
+  var msg = document.querySelector("#serviceMessage");
+  if (msg) msg.style.display = "none";
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#6b7280">Loading...</td></tr>';
+  try {
+    var res = await fetch("/api/sites/" + encodeURIComponent(domain) + "/services");
+    var services = await res.json();
+    if (!Array.isArray(services) || !services.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#6b7280">No services found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = services.map(function (s) {
+      var isRunning = s.status === "running";
+      var statusClass = isRunning ? "ok" : "muted";
+      var statusText = isRunning ? "Running" : "Stopped";
+      var actions = "";
+      if (isRunning) {
+        actions += '<button class="ghost-btn compact service-action" data-service="' + s.service + '" data-action="restart"><i class="fa-solid fa-rotate"></i><span>Restart</span></button>';
+        actions += '<button class="ghost-btn compact service-action" data-service="' + s.service + '" data-action="stop"><i class="fa-solid fa-stop"></i><span>Stop</span></button>';
+      } else {
+        actions += '<button class="primary-btn compact service-action" data-service="' + s.service + '" data-action="start"><i class="fa-solid fa-play"></i><span>Start</span></button>';
+      }
+      return '<tr><td><strong>' + s.label + '</strong></td><td><b class="' + statusClass + '">' + statusText + '</b></td><td style="display:flex;gap:6px">' + actions + '</td></tr>';
+    }).join("");
+    tbody.querySelectorAll(".service-action").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        serviceAction(btn.dataset.service, btn.dataset.action);
+      });
+    });
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#dc2626">Failed to load services</td></tr>';
+  }
+}
+
+async function serviceAction(serviceName, action) {
+  var msg = document.querySelector("#serviceMessage");
+  if (msg) {
+    msg.style.display = "block";
+    msg.style.background = "#fef3c7";
+    msg.style.border = "1px solid #f59e0b";
+    msg.style.color = "#78350f";
+    msg.textContent = action + " " + serviceName + "...";
+  }
+  try {
+    var res = await fetch("/api/sites/" + encodeURIComponent(domain) + "/services", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ service: serviceName, action: action }),
+    });
+    var result = await res.json();
+    if (msg) {
+      if (result.ok) {
+        msg.style.background = "#f0fdf4";
+        msg.style.border = "1px solid #86efac";
+        msg.style.color = "#166534";
+        msg.textContent = serviceName + " " + action + " successful";
+      } else {
+        msg.style.background = "#fef2f2";
+        msg.style.border = "1px solid #fecaca";
+        msg.style.color = "#991b1b";
+        msg.textContent = result.error || "Action failed";
+      }
+    }
+    loadServices();
+  } catch (e) {
+    if (msg) {
+      msg.style.background = "#fef2f2";
+      msg.style.border = "1px solid #fecaca";
+      msg.style.color = "#991b1b";
+      msg.textContent = "Request failed";
+    }
   }
 }
 
@@ -1529,6 +1607,12 @@ document.addEventListener("keydown", function (e) {
       saveFileEditor();
     }
   }
+});
+
+document.querySelector("#refreshServices")?.addEventListener("click", loadServices);
+
+document.querySelector("#openPhpMyAdmin")?.addEventListener("click", function () {
+  window.open("/api/sites/" + encodeURIComponent(domain) + "/phpmyadmin-redirect", "_blank");
 });
 
 loadDetail().catch(function (err) {

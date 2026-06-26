@@ -8,6 +8,7 @@
 #   sudo bash install.sh
 #   APP_USER=myuser APP_PASSWORD=secret sudo bash install.sh
 #   INSTALL_PHP_VERSIONS="8.2 8.4" sudo bash install.sh
+#   INSTALL_PGADMIN=yes SKIP_SSH=yes sudo bash install.sh
 
 set -Eeuo pipefail
 
@@ -29,10 +30,15 @@ REPO_URL="${REPO_URL:-https://github.com/ekohendratno/mycp/archive/refs/heads/ma
 # PHP versions to install (override via env)
 INSTALL_PHP_VERSIONS="${INSTALL_PHP_VERSIONS:-}"
 
-# Database options
+# Toggle features via env vars
 INSTALL_MARIADB="${INSTALL_MARIADB:-yes}"
 INSTALL_POSTGRES="${INSTALL_POSTGRES:-yes}"
 INSTALL_FTP="${INSTALL_FTP:-yes}"
+INSTALL_FAIL2BAN="${INSTALL_FAIL2BAN:-yes}"
+INSTALL_REDIS="${INSTALL_REDIS:-yes}"
+INSTALL_PGADMIN="${INSTALL_PGADMIN:-no}"
+INSTALL_COMPOSER="${INSTALL_COMPOSER:-yes}"
+SKIP_SSH="${SKIP_SSH:-no}"
 
 # ============================================================
 # OUTPUT HELPERS
@@ -143,6 +149,101 @@ pkg_install() {
 }
 
 # ============================================================
+# SSH SETUP & HARDENING
+# ============================================================
+setup_ssh() {
+  if is_wsl; then
+    log "WSL terdeteksi, skip SSH setup"
+    return
+  fi
+  if [ "${SKIP_SSH}" = "yes" ]; then
+    log "SKIP_SSH=yes, SSH setup dilewati"
+    return
+  fi
+
+  log "Install & konfigurasi SSH server"
+  case "${PKG_MANAGER}" in
+    apt) pkg_install openssh-server ;;
+    dnf|yum) pkg_install openssh-server ;;
+    pacman) pkg_install openssh ;;
+    *) warn "SSH install belum didukung untuk ${PKG_MANAGER}"; return ;;
+  esac
+
+  local sshd_config="/etc/ssh/sshd_config"
+  if [ -f "${sshd_config}" ]; then
+    # Hardening dasar
+    sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' "${sshd_config}"
+    sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' "${sshd_config}"
+    sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' "${sshd_config}"
+    sed -i 's/^#\?X11Forwarding.*/X11Forwarding no/' "${sshd_config}"
+    sed -i 's/^#\?ClientAliveInterval.*/ClientAliveInterval 300/' "${sshd_config}"
+    sed -i 's/^#\?ClientAliveCountMax.*/ClientAliveCountMax 2/' "${sshd_config}"
+    sed -i 's/^#\?MaxAuthTries.*/MaxAuthTries 3/' "${sshd_config}"
+
+    # Pastikan setting belum diubah (tambahkan jika belum ada)
+    grep -q "^PermitRootLogin" "${sshd_config}" || echo "PermitRootLogin prohibit-password" >> "${sshd_config}"
+    grep -q "^ClientAliveInterval" "${sshd_config}" || echo "ClientAliveInterval 300" >> "${sshd_config}"
+    grep -q "^MaxAuthTries" "${sshd_config}" || echo "MaxAuthTries 3" >> "${sshd_config}"
+  fi
+
+  service_restart sshd || service_restart ssh || true
+  log "SSH server siap (port 22, root login dengan password dilarang)"
+}
+
+# ============================================================
+# FIREWALL
+# ============================================================
+configure_firewall() {
+  if is_wsl; then
+    log "WSL terdeteksi, skip firewall"
+    return
+  fi
+
+  case "${PKG_MANAGER}" in
+    apt)
+      if ! command -v ufw >/dev/null 2>&1; then
+        pkg_install ufw
+      fi
+      log "Konfigurasi UFW firewall"
+      ufw --force reset >/dev/null 2>&1 || true
+      ufw default deny incoming >/dev/null 2>&1
+      ufw default allow outgoing >/dev/null 2>&1
+      ufw allow ssh >/dev/null 2>&1
+      ufw allow 80/tcp >/dev/null 2>&1
+      ufw allow 443/tcp >/dev/null 2>&1
+      ufw allow "${PANEL_PORT}/tcp" >/dev/null 2>&1
+      # FTP aktif untuk vsftpd
+      if [ "${INSTALL_FTP}" = "yes" ]; then
+        ufw allow 20/tcp >/dev/null 2>&1
+        ufw allow 21/tcp >/dev/null 2>&1
+        ufw allow 50000:50100/tcp >/dev/null 2>&1
+      fi
+      # MariaDB/MySQL hanya localhost
+      # PostgreSQL hanya localhost
+      ufw --force enable >/dev/null 2>&1 || true
+      log "UFW aktif: SSH, HTTP, HTTPS, port ${PANEL_PORT} terbuka"
+      ;;
+    dnf|yum)
+      if command -v firewall-cmd >/dev/null 2>&1; then
+        log "Konfigurasi firewalld"
+        firewall-cmd --permanent --add-service=ssh >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-service=http >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-service=https >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-port="${PANEL_PORT}/tcp" >/dev/null 2>&1 || true
+        if [ "${INSTALL_FTP}" = "yes" ]; then
+          firewall-cmd --permanent --add-service=ftp >/dev/null 2>&1 || true
+          firewall-cmd --permanent --add-port=50000-50100/tcp >/dev/null 2>&1 || true
+        fi
+        firewall-cmd --reload >/dev/null 2>&1 || true
+      fi
+      ;;
+    *)
+      warn "Firewall auto-konfigurasi hanya untuk apt/dnf, atur manual untuk ${PKG_MANAGER}"
+      ;;
+  esac
+}
+
+# ============================================================
 # PHP REPOSITORY SETUP
 # ============================================================
 PHP_REPO_READY=0
@@ -223,6 +324,9 @@ setup_php_repo() {
   esac
 }
 
+# ============================================================
+# PHP MULTI VERSION INSTALL
+# ============================================================
 install_php_versions() {
   if [ -z "${INSTALL_PHP_VERSIONS}" ]; then
     log "Tidak ada versi PHP yang akan diinstall"
@@ -236,20 +340,40 @@ install_php_versions() {
           "php${ver}-mysql" "php${ver}-pgsql" "php${ver}-xml" "php${ver}-mbstring" \
           "php${ver}-curl" "php${ver}-zip" "php${ver}-gd" "php${ver}-bcmath" "php${ver}-intl" 2>/dev/null || \
           warn "Gagal install beberapa ekstensi PHP ${ver}"
+        # Redis extension
+        pkg_install "php${ver}-redis" 2>/dev/null || true
+        # Imagick extension
+        pkg_install "php${ver}-imagick" 2>/dev/null || true
         ;;
       dnf|yum)
         dnf module enable -y "php:remi-${ver}" >/dev/null 2>&1 || \
           dnf module enable -y php >/dev/null 2>&1 || true
         pkg_install "php-fpm" "php-cli" "php-mysqlnd" "php-pgsql" "php-xml" "php-mbstring" \
-          "php-curl" "php-zip" "php-gd" "php-bcmath" "php-intl" 2>/dev/null || \
+          "php-curl" "php-zip" "php-gd" "php-bcmath" "php-intl" "php-pecl-redis" 2>/dev/null || \
           warn "Gagal install PHP ${ver} di ${DISTRO}"
         ;;
       pacman)
-        pkg_install "php" "php-fpm" 2>/dev/null || warn "Gagal install PHP di Arch" ;;
+        pkg_install "php" "php-fpm" "php-redis" 2>/dev/null || warn "Gagal install PHP di Arch" ;;
       *)
         warn "PHP install belum diimplementasi untuk ${PKG_MANAGER}" ;;
     esac
   done
+}
+
+# ============================================================
+# COMPOSER
+# ============================================================
+install_composer() {
+  if command -v composer >/dev/null 2>&1; then
+    log "Composer sudah terinstall"
+    return
+  fi
+  log "Install PHP Composer"
+  pkg_install curl php-cli
+  curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer >/dev/null 2>&1 || \
+    warn "Gagal install Composer"
+  chmod 755 /usr/local/bin/composer 2>/dev/null || true
+  log "Composer siap: $(composer --version 2>/dev/null || echo 'unknown')"
 }
 
 # ============================================================
@@ -281,11 +405,17 @@ install_nodejs() {
     echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.bashrc
   fi
 
-  # Install PM2 global (untuk manajemen Node.js sites)
+  # Install PM2 global
   log "Install PM2 global"
   npm install -g pm2 2>/dev/null || warn "Gagal install PM2"
+  # Pastikan symlink PM2
+  local pm2_bin
+  pm2_bin="$(which pm2 2>/dev/null || echo "")"
+  if [ -n "${pm2_bin}" ]; then
+    ln -sf "${pm2_bin}" /usr/local/bin/pm2 2>/dev/null || true
+  fi
 
-  # Install NVM untuk APP_USER juga (supaya 'srv' bisa pakai nvm)
+  # Install NVM untuk APP_USER
   local user_home="/home/${APP_USER}"
   if [ -d "${user_home}" ] && [ ! -s "${user_home}/.nvm/nvm.sh" ]; then
     log "Install NVM untuk user ${APP_USER}"
@@ -311,22 +441,27 @@ install_packages() {
   case "${PKG_MANAGER}" in
     apt)
       pkg_install ca-certificates curl unzip rsync acl git \
-        nginx certbot python3-certbot-nginx
+        nginx certbot python3-certbot-nginx openssh-server ufw
       [ "${INSTALL_FTP}" = "yes" ] && pkg_install vsftpd || true
       [ "${INSTALL_MARIADB}" = "yes" ] && pkg_install mariadb-server mariadb-client || true
       [ "${INSTALL_POSTGRES}" = "yes" ] && pkg_install postgresql postgresql-client || true
-      # Build tools for native npm modules (node-pty, etc.)
+      [ "${INSTALL_REDIS}" = "yes" ] && pkg_install redis-server || true
+      [ "${INSTALL_FAIL2BAN}" = "yes" ] && pkg_install fail2ban || true
       pkg_install build-essential python3 2>/dev/null || true
+      # Extra tools
+      pkg_install htop net-tools mc 2>/dev/null || true
       ;;
     dnf|yum)
       pkg_install ca-certificates curl unzip rsync acl \
-        nginx certbot python3-certbot-nginx
+        nginx certbot python3-certbot-nginx openssh-server
       [ "${INSTALL_FTP}" = "yes" ] && pkg_install vsftpd || true
       [ "${INSTALL_MARIADB}" = "yes" ] && pkg_install mariadb-server mariadb || true
       [ "${INSTALL_POSTGRES}" = "yes" ] && pkg_install postgresql postgresql-server postgresql-contrib || true
       if [ "${INSTALL_POSTGRES}" = "yes" ] && [ ! -f /var/lib/pgsql/data/PGVERSION ]; then
         postgresql-setup --initdb >/dev/null 2>&1 || true
       fi
+      [ "${INSTALL_REDIS}" = "yes" ] && pkg_install redis || true
+      [ "${INSTALL_FAIL2BAN}" = "yes" ] && pkg_install fail2ban || true
       if command -v firewall-cmd >/dev/null 2>&1; then
         firewall-cmd --permanent --add-service=http >/dev/null 2>&1 || true
         firewall-cmd --permanent --add-port="${PANEL_PORT}/tcp" >/dev/null 2>&1 || true
@@ -334,10 +469,12 @@ install_packages() {
       fi
       ;;
     pacman)
-      pkg_install ca-certificates curl unzip rsync acl nginx certbot
+      pkg_install ca-certificates curl unzip rsync acl nginx certbot openssh
       [ "${INSTALL_FTP}" = "yes" ] && pkg_install vsftpd || true
       [ "${INSTALL_MARIADB}" = "yes" ] && pkg_install mariadb || true
       [ "${INSTALL_POSTGRES}" = "yes" ] && pkg_install postgresql || true
+      [ "${INSTALL_REDIS}" = "yes" ] && pkg_install redis || true
+      [ "${INSTALL_FAIL2BAN}" = "yes" ] && pkg_install fail2ban || true
       ;;
     *)
       warn "Lewati install paket standar untuk ${PKG_MANAGER}" ;;
@@ -347,6 +484,7 @@ install_packages() {
   install_php_versions
 
   install_nodejs
+  [ "${INSTALL_COMPOSER}" = "yes" ] && install_composer
 }
 
 # ============================================================
@@ -391,6 +529,7 @@ copy_panel_files() {
   rsync -a --delete \
     --exclude ".git" \
     --exclude "install.sh" \
+    --exclude "deploy/" \
     "${source_dir}/" "${APP_DIR}/"
 
   log "Install Node.js dependencies"
@@ -400,7 +539,6 @@ copy_panel_files() {
     \. "$NVM_DIR/nvm.sh"
   fi
   npm install --production 2>/dev/null || true
-  # Install missing npm packages yang di-require server.js tapi tidak di package.json
   npm install ws node-pty multer 2>/dev/null || \
     warn "Gagal install ws/node-pty/multer; terminal & upload mungkin tidak berfungsi"
 
@@ -413,6 +551,9 @@ copy_panel_files() {
   [ -z "${temp_dir}" ] || rm -rf "${temp_dir}"
 }
 
+# ============================================================
+# NGINX - Panel Reverse Proxy
+# ============================================================
 write_nginx_config() {
   log "Tulis konfigurasi Nginx reverse proxy (listen :80 -> panel port ${PANEL_PORT})"
   local nginx_config
@@ -425,10 +566,17 @@ server {
     access_log /var/log/nginx/${APP_SLUG}.access.log;
     error_log /var/log/nginx/${APP_SLUG}.error.log;
 
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
     location /assets/ {
         alias ${APP_DIR}/assets/;
         expires 7d;
         access_log off;
+        add_header Cache-Control "public, immutable";
     }
 
     location / {
@@ -440,6 +588,7 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_hide_header X-Powered-By;
     }
 }
 NGINX
@@ -459,6 +608,186 @@ NGINX
   nginx -t 2>&1 || warn "Nginx config test gagal (perlu dicek manual)"
 }
 
+# ============================================================
+# FTP (vsftpd) - Konfigurasi
+# ============================================================
+configure_ftp() {
+  [ "${INSTALL_FTP}" != "yes" ] && return
+  if ! command -v vsftpd >/dev/null 2>&1; then
+    warn "vsftpd tidak terinstall, skip konfigurasi FTP"
+    return
+  fi
+  if is_wsl; then
+    log "WSL terdeteksi, skip FTP konfigurasi"
+    return
+  fi
+
+  log "Konfigurasi vsftpd"
+  local vsftpd_conf="/etc/vsftpd.conf"
+  if [ -f "${vsftpd_conf}" ]; then
+    cp "${vsftpd_conf}" "${vsftpd_conf}.bak" 2>/dev/null || true
+  fi
+
+  cat > "${vsftpd_conf}" <<FTP
+listen=YES
+listen_ipv6=NO
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+xferlog_std_format=YES
+chroot_local_user=YES
+allow_writeable_chroot=YES
+pasv_min_port=50000
+pasv_max_port=50100
+user_sub_token=\$USER
+local_root=/home/\$USER/htdocs
+seccomp_sandbox=NO
+FTP
+
+  service_restart vsftpd || true
+  log "vsftpd dikonfigurasi (pasv: 50000-50100, chroot ke ~/htdocs)"
+}
+
+# ============================================================
+# SSL / LETS ENCRYPT - Auto-Renewal
+# ============================================================
+setup_ssl_auto() {
+  if ! command -v certbot >/dev/null 2>&1; then
+    warn "certbot tidak terinstall, skip SSL auto-renewal"
+    return
+  fi
+  log "Setup certbot auto-renewal (cron harian)"
+  if [ ! -f /etc/cron.d/certbot ]; then
+    echo "0 3 * * * root /usr/bin/certbot renew --quiet --post-hook \"systemctl reload nginx\"" \
+      > /etc/cron.d/certbot
+    chmod 644 /etc/cron.d/certbot
+    log "Cron certbot dibuat: renew jam 3 pagi setiap hari"
+  else
+    log "Cron certbot sudah ada"
+  fi
+}
+
+# ============================================================
+# FAIL2BAN
+# ============================================================
+configure_fail2ban() {
+  [ "${INSTALL_FAIL2BAN}" != "yes" ] && return
+  if ! command -v fail2ban-server >/dev/null 2>&1 && ! command -v fail2ban-client >/dev/null 2>&1; then
+    warn "fail2ban tidak terinstall, skip"
+    return
+  fi
+  if is_wsl; then
+    log "WSL terdeteksi, skip fail2ban"
+    return
+  fi
+
+  log "Konfigurasi fail2ban"
+  mkdir -p /etc/fail2ban/jail.d
+
+  # Panel login protection
+  cat > /etc/fail2ban/jail.d/mycp.conf <<F2B
+[mycp-panel]
+enabled = true
+port = ${PANEL_PORT}
+filter = mycp-panel
+logpath = ${APP_DIR}/server.log
+maxretry = 5
+bantime = 3600
+findtime = 600
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 86400
+findtime = 600
+
+[nginx-http-auth]
+enabled = true
+port = http,https
+filter = nginx-http-auth
+logpath = /var/log/nginx/*.error.log
+maxretry = 5
+bantime = 3600
+F2B
+
+  # Custom filter for panel
+  mkdir -p /etc/fail2ban/filter.d
+  cat > /etc/fail2ban/filter.d/mycp-panel.conf <<FILTER
+[Definition]
+failregex = ^.*Failed login from .*$
+ignoreregex =
+FILTER
+
+  service_restart fail2ban || true
+  log "fail2ban aktif: SSH (3 attempts), Panel (5 attempts), Nginx (5 attempts)"
+}
+
+# ============================================================
+# REDIS
+# ============================================================
+configure_redis() {
+  [ "${INSTALL_REDIS}" != "yes" ] && return
+  if ! command -v redis-server >/dev/null 2>&1; then
+    warn "redis-server tidak terinstall, skip"
+    return
+  fi
+  log "Konfigurasi Redis (bind localhost, unix socket)"
+  local redis_conf="/etc/redis/redis.conf"
+  if [ -f "${redis_conf}" ]; then
+    sed -i 's/^bind .*/bind 127.0.0.1/' "${redis_conf}"
+    sed -i 's/^# unixsocket .*/unixsocket \/run\/redis\/redis.sock/' "${redis_conf}"
+    sed -i 's/^# unixsocketperm .*/unixsocketperm 770/' "${redis_conf}"
+    sed -i 's/^# requirepass .*/requirepass ""/' "${redis_conf}"
+    sed -i 's/^protected-mode .*/protected-mode yes/' "${redis_conf}"
+  fi
+  service_restart redis-server || service_restart redis || true
+  log "Redis siap di 127.0.0.1:6379"
+}
+
+# ============================================================
+# PGADMIN4
+# ============================================================
+install_pgadmin() {
+  [ "${INSTALL_PGADMIN}" != "yes" ] && return
+  log "Install pgAdmin4"
+  case "${PKG_MANAGER}" in
+    apt)
+      if [ "${DISTRO}" = "ubuntu" ] || [ "${DISTRO}" = "debian" ]; then
+        # Setup pgAdmin4 repo
+        curl -fsSL https://www.pgadmin.org/static/packages_pgadmin_org.pub | gpg --dearmor -o /usr/share/keyrings/pgadmin.gpg >/dev/null 2>&1
+        echo "deb [signed-by=/usr/share/keyrings/pgadmin.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -sc 2>/dev/null || echo bookworm) pgadmin4 main" \
+          > /etc/apt/sources.list.d/pgadmin4.list
+        apt-get update >/dev/null 2>&1 || true
+        pkg_install pgadmin4-web 2>/dev/null || {
+          warn "Gagal install pgAdmin4 dari repo, coba pip"
+          pkg_install python3-pip
+          pip3 install pgadmin4 2>/dev/null || warn "Gagal install pgAdmin4 via pip"
+        }
+      else
+        warn "pgAdmin4 auto-install hanya untuk Debian/Ubuntu, install manual"
+      fi
+      ;;
+    *)
+      warn "pgAdmin4 auto-install hanya untuk apt, install manual untuk ${PKG_MANAGER}"
+      ;;
+  esac
+
+  if command -v /usr/pgadmin4/bin/setup-web.sh >/dev/null 2>&1; then
+    /usr/pgadmin4/bin/setup-web.sh --yes "${APP_USER}" "${APP_PASSWORD}" 2>/dev/null || \
+      warn "pgAdmin4 web setup skipped, jalankan manual: sudo /usr/pgadmin4/bin/setup-web.sh"
+  fi
+}
+
+# ============================================================
+# SUDOERS
+# ============================================================
 configure_sudo_scripts() {
   log "Izinkan ${APP_USER} menjalankan scripts panel via sudo tanpa password"
   cat >/etc/sudoers.d/mycp <<SUDO
@@ -472,46 +801,17 @@ ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/php-fpm*, /usr/sbin/php*-fpm
 ${APP_USER} ALL=(ALL) NOPASSWD: /bin/kill, /usr/bin/killall, /usr/bin/pkill
 ${APP_USER} ALL=(ALL) NOPASSWD: /bin/chown, /bin/chmod, /bin/mv, /bin/mkdir
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/useradd, /usr/sbin/usermod, /usr/sbin/chpasswd
+${APP_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart mariadb, /bin/systemctl restart mysql
+${APP_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart postgresql
+${APP_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart redis-server, /bin/systemctl restart redis
+${APP_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart fail2ban
 SUDO
   chmod 440 /etc/sudoers.d/mycp
 }
 
-ensure_pm2_in_path() {
-  if ! command -v pm2 >/dev/null 2>&1; then
-    log "PM2 tidak ada di PATH; cari lokasi PM2..."
-    local pm2_bin
-    pm2_bin="$(find /usr/local/lib/node_modules /usr/lib/node_modules /root/.nvm /home -maxdepth 4 -name "pm2" -path "*/bin/pm2" 2>/dev/null | head -n1)"
-    if [ -n "${pm2_bin}" ] && [ -f "${pm2_bin}" ]; then
-      ln -sf "${pm2_bin}" /usr/local/bin/pm2 2>/dev/null && \
-        log "Symlink PM2: ${pm2_bin} -> /usr/local/bin/pm2"
-    else
-      warn "PM2 binary tidak ditemukan. Node.js sites mungkin tidak bisa distart."
-    fi
-  else
-    log "PM2 sudah ada di PATH: $(command -v pm2)"
-  fi
-}
-
-configure_firewall() {
-  case "${PKG_MANAGER}" in
-    apt)
-      if command -v ufw >/dev/null 2>&1; then
-        log "Buka port HTTP (80) dan panel (${PANEL_PORT}) via ufw"
-        ufw allow 80/tcp >/dev/null 2>&1 || true
-        ufw allow "${PANEL_PORT}/tcp" >/dev/null 2>&1 || true
-      fi
-      ;;
-    dnf|yum)
-      if command -v firewall-cmd >/dev/null 2>&1; then
-        log "Buka port HTTP (80) dan panel (${PANEL_PORT}) via firewall-cmd"
-        firewall-cmd --permanent --add-service=http >/dev/null 2>&1 || true
-        firewall-cmd --permanent --add-port="${PANEL_PORT}/tcp" >/dev/null 2>&1 || true
-        firewall-cmd --reload >/dev/null 2>&1 || true
-      fi
-      ;;
-  esac
-}
-
+# ============================================================
+# SYSTEMD SERVICE
+# ============================================================
 write_node_service() {
   log "Buat systemd service mycp-server"
   local node_bin="/usr/bin/node"
@@ -546,6 +846,9 @@ UNIT
   fi
 }
 
+# ============================================================
+# HELPER COMMAND
+# ============================================================
 write_helper_command() {
   log "Buat command mycp"
   cat >/usr/local/bin/mycp <<MYCP
@@ -566,7 +869,9 @@ case "\${COMMAND}" in
   site:delete)         "\${SCRIPTS_DIR}/site-delete.sh" "\$@" ;;
   vhost:save)          "\${SCRIPTS_DIR}/vhost-save.sh" "\$@" ;;
   ssl:issue)           "\${SCRIPTS_DIR}/ssl-issue.sh" "\$@" ;;
+  ssl:auto)            certbot --nginx -d "\$@" --non-interactive --agree-tos --email admin@\$(echo "\$@" | cut -d' ' -f1) ;;
   db:create)           "\${SCRIPTS_DIR}/database-create.sh" "\$@" ;;
+  db:fix-privileges)   "\${SCRIPTS_DIR}/fix-db-privileges.sh" "\$@" ;;
   ftp:create)          "\${SCRIPTS_DIR}/ftp-create.sh" "\$@" ;;
   cron:add)            "\${SCRIPTS_DIR}/cron-add.sh" "\$@" ;;
   file:write)          "\${SCRIPTS_DIR}/file-write.sh" "\$@" ;;
@@ -588,65 +893,12 @@ case "\${COMMAND}" in
     fi
     ;;
   *)
-    echo "Usage: mycp {status|site:list|site:create|site:update-domain|site:update-runtime|site:password|site:delete|vhost:save|ssl:issue|db:create|ftp:create|cron:add|file:list|file:write|folder:create|log:read|path|url|restart}"
+    echo "Usage: mycp {status|site:list|site:create|site:update-domain|site:update-runtime|site:password|site:delete|vhost:save|ssl:issue|ssl:auto|db:create|db:fix-privileges|ftp:create|cron:add|file:list|file:write|folder:create|log:read|path|url|restart}"
     exit 1
     ;;
 esac
 MYCP
   chmod +x /usr/local/bin/mycp
-}
-
-# ============================================================
-# POST-INSTALL
-# ============================================================
-print_done() {
-  local host_ip
-  host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-
-  log "Install selesai"
-  printf '\n'
-  printf '== MyControlPanel ==\n'
-  printf '\n'
-  printf 'Panel URL lokal : http://127.0.0.1:%s/login\n' "${PANEL_PORT}"
-  if [ -n "${host_ip}" ]; then
-    printf 'Panel URL LAN   : http://%s:%s/login\n' "${host_ip}" "${PANEL_PORT}"
-  fi
-  printf 'Login demo      : admin / admin123\n'
-  printf 'Linux user      : %s / %s\n' "${APP_USER}" "${APP_PASSWORD}"
-  printf 'Panel path      : %s\n' "${APP_DIR}"
-  printf 'Scripts path    : %s\n' "${APP_SCRIPTS_DIR}"
-  printf 'Distro          : %s %s\n' "${DISTRO}" "${DISTRO_VERSION}"
-  printf 'Service manager : %s\n' "${SERVICE_CMD}"
-  printf 'PHP versions    : %s\n' "${INSTALL_PHP_VERSIONS:-default}"
-  # Tampilkan socket PHP-FPM yang running
-  if [ -d /run/php ]; then
-    local php_socks=""
-    for s in /run/php/php*-fpm.sock; do
-      [ -e "$s" ] || continue
-      php_socks="${php_socks}$(basename "$s") "
-    done
-    [ -n "${php_socks}" ] && printf 'PHP-FPM running : %s\n' "${php_socks}"
-  fi
-  # Tampilkan versi Node.js yang tersedia
-  if [ -s /root/.nvm/nvm.sh ] || [ -s "/home/${APP_USER}/.nvm/nvm.sh" ]; then
-    local nvm_dir="/root/.nvm"
-    [ ! -s "${nvm_dir}/nvm.sh" ] && nvm_dir="/home/${APP_USER}/.nvm"
-    local node_vers
-    node_vers="$(export NVM_DIR="${nvm_dir}"; \. "${nvm_dir}/nvm.sh" >/dev/null 2>&1; nvm list 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -5 | tr '\n' ' ')"
-    [ -n "${node_vers}" ] && printf 'Node.js versions: %s\n' "${node_vers}"
-  fi
-  printf '\n'
-  printf 'Helper commands:\n'
-  printf '  mycp status              Cek status server\n'
-  printf '  mycp site:list           List semua website\n'
-  printf '  mycp site:create --domain ... Buat website baru\n'
-  printf '  mycp restart             Restart panel + nginx\n'
-  printf '\n'
-
-  if is_wsl; then
-    warn "Terdeteksi WSL. Jika service tidak otomatis hidup setelah reboot WSL, jalankan: sudo service nginx restart; sudo service mycp-server restart"
-    warn "Panel dapat diakses di http://localhost:${PANEL_PORT}/login atau http://localhost/ (via Nginx)"
-  fi
 }
 
 # ============================================================
@@ -674,49 +926,40 @@ setup_swap() {
 verify_services() {
   log "Verifikasi services & paths..."
 
-  # Pastikan /run/php-fpm ada (untuk socket per-site)
   if [ ! -d /run/php-fpm ]; then
     mkdir -p /run/php-fpm 2>/dev/null || true
     chmod 755 /run/php-fpm 2>/dev/null || true
     log "Buat direktori /run/php-fpm"
   fi
 
-  # Pastikan /var/log/php-fpm ada (untuk error log per-site)
   if [ ! -d /var/log/php-fpm ]; then
     mkdir -p /var/log/php-fpm 2>/dev/null || true
     chown www-data:www-data /var/log/php-fpm 2>/dev/null || true
     log "Buat direktori /var/log/php-fpm"
   fi
 
-  # Detect installed PHP versions aktual (bisa beda dari INSTALL_PHP_VERSIONS)
   local actual_php=""
   if [ -d /etc/php ]; then
     for d in /etc/php/*/fpm; do
       [ -d "$d" ] || continue
       local v
       v="$(basename "$(dirname "$d")")"
-      # Cari binary php-fpm
       local bin
       bin="$(find /usr/sbin /usr/bin -maxdepth 1 -name "php-fpm${v}" -o -name "php${v}-fpm" 2>/dev/null | head -n1)"
       if [ -n "${bin}" ]; then
         actual_php="${actual_php}${v} "
-        # Start jika belum running
         if [ ! -S "/run/php/php${v}-fpm.sock" ]; then
           ${bin} -D >/dev/null 2>&1 || true
           log "Start PHP ${v} FPM"
-        else
-          log "PHP ${v} FPM sudah running"
         fi
       fi
     done
   fi
 
-  # Update INSTALL_PHP_VERSIONS dengan actual
   if [ -n "${actual_php}" ]; then
     INSTALL_PHP_VERSIONS="${actual_php}"
   fi
 
-  # Test config semua PHP-FPM pools
   for ver in ${INSTALL_PHP_VERSIONS}; do
     local bin
     bin="$(find /usr/sbin /usr/bin -maxdepth 1 -name "php-fpm${ver}" -o -name "php${ver}-fpm" 2>/dev/null | head -n1)"
@@ -725,32 +968,151 @@ verify_services() {
     fi
   done
 
-  # Verify Nginx config
   if command -v nginx >/dev/null 2>&1; then
     nginx -t 2>&1 | head -3 || warn "Nginx config test gagal"
   fi
 
-  # Verify mycp-server service
   if [ "${SERVICE_CMD}" = "systemd" ]; then
     systemctl is-active mycp-server >/dev/null 2>&1 || \
       log "mycp-server belum aktif (coba: sudo systemctl start mycp-server)"
+    systemctl is-active fail2ban >/dev/null 2>&1 || true
+    systemctl is-active redis-server >/dev/null 2>&1 || systemctl is-active redis >/dev/null 2>&1 || true
   fi
 }
 
+# ============================================================
+# SUMMARY
+# ============================================================
+print_done() {
+  local host_ip
+  host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+
+  log "Install selesai"
+  printf '\n'
+  printf '== MyControlPanel ==\n'
+  printf '\n'
+  printf 'Panel URL lokal : http://127.0.0.1:%s/login\n' "${PANEL_PORT}"
+  if [ -n "${host_ip}" ]; then
+    printf 'Panel URL LAN   : http://%s:%s/login\n' "${host_ip}" "${PANEL_PORT}"
+  fi
+  printf 'Login demo      : admin / admin123\n'
+  printf 'Linux user      : %s / %s\n' "${APP_USER}" "${APP_PASSWORD}"
+  printf 'Panel path      : %s\n' "${APP_DIR}"
+  printf 'Scripts path    : %s\n' "${APP_SCRIPTS_DIR}"
+  printf 'Distro          : %s %s\n' "${DISTRO}" "${DISTRO_VERSION}"
+  printf 'Service manager : %s\n' "${SERVICE_CMD}"
+  printf 'PHP versions    : %s\n' "${INSTALL_PHP_VERSIONS:-default}"
+  if [ -d /run/php ]; then
+    local php_socks=""
+    for s in /run/php/php*-fpm.sock; do
+      [ -e "$s" ] || continue
+      php_socks="${php_socks}$(basename "$s") "
+    done
+    [ -n "${php_socks}" ] && printf 'PHP-FPM running : %s\n' "${php_socks}"
+  fi
+  if [ -s /root/.nvm/nvm.sh ] || [ -s "/home/${APP_USER}/.nvm/nvm.sh" ]; then
+    local nvm_dir="/root/.nvm"
+    [ ! -s "${nvm_dir}/nvm.sh" ] && nvm_dir="/home/${APP_USER}/.nvm"
+    local node_vers
+    node_vers="$(export NVM_DIR="${nvm_dir}"; \. "${nvm_dir}/nvm.sh" >/dev/null 2>&1; nvm list 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -5 | tr '\n' ' ')"
+    [ -n "${node_vers}" ] && printf 'Node.js versions: %s\n' "${node_vers}"
+  fi
+  printf '\n'
+  printf 'Installed features:\n'
+  printf '  SSH server    : \033[1;32mACTIF\033[0m (port 22, hardened)\n'
+  printf '  Firewall      : \033[1;32mACTIF\033[0m (SSH, HTTP, HTTPS, port %s)\n' "${PANEL_PORT}"
+  [ "${INSTALL_FTP}" = "yes" ] && printf '  FTP server    : \033[1;32mACTIF\033[0m (vsftpd, pasv 50000-50100)\n'
+  [ "${INSTALL_MARIADB}" = "yes" ] && printf '  MariaDB/MySQL : \033[1;32mACTIF\033[0m\n'
+  [ "${INSTALL_POSTGRES}" = "yes" ] && printf '  PostgreSQL    : \033[1;32mACTIF\033[0m\n'
+  [ "${INSTALL_REDIS}" = "yes" ] && printf '  Redis         : \033[1;32mACTIF\033[0m\n'
+  [ "${INSTALL_FAIL2BAN}" = "yes" ] && printf '  Fail2ban      : \033[1;32mACTIF\033[0m (SSH, Panel, Nginx)\n'
+  printf '  SSL (Lets Encrypt): \033[1;32mcertbot\033[0m + auto-renewal cron\n'
+  [ "${INSTALL_COMPOSER}" = "yes" ] && printf '  Composer       : \033[1;32mACTIF\033[0m\n'
+  printf '  phpMyAdmin    : via panel (port 8087)\n'
+  [ "${INSTALL_PGADMIN}" = "yes" ] && printf '  pgAdmin4      : \033[1;32mACTIF\033[0m\n'
+  printf '\n'
+  printf 'Helper commands:\n'
+  printf '  mycp status             Cek status server\n'
+  printf '  mycp site:list          List semua website\n'
+  printf '  mycp site:create ...    Buat website baru\n'
+  printf '  mycp restart            Restart panel + nginx\n'
+  printf '  mycp ssl:auto domain   Buat SSL Lets Encrypt (non-interactive)\n'
+  printf '  mycp db:fix-privileges  Fix SHOW DATABASES untuk user DB\n'
+  printf '\n'
+
+  if is_wsl; then
+    warn "WSL: service tidak otomatis startup. Jalankan:"
+    warn "  sudo service nginx restart"
+    warn "  sudo service mycp-server restart"
+    warn "Panel: http://localhost:${PANEL_PORT}/login"
+  fi
+}
+
+# ============================================================
+# MAIN
+# ============================================================
 main() {
   require_root
   detect_distro
   detect_service_manager
+
+  # 1. Install packages (Nginx, PHP, Node, MariaDB, PostgreSQL, Redis, Fail2ban, etc)
   install_packages
+
+  # 2. Create panel user
   create_panel_user
+
+  # 3. Copy panel files
   copy_panel_files
+
+  # 4. Write Nginx config
   write_nginx_config
+
+  # 5. Sudoers
   configure_sudo_scripts
+
+  # 6. SSH hardening
+  setup_ssh
+
+  # 7. Firewall
   configure_firewall
-  ensure_pm2_in_path
+
+  # 8. FTP config
+  configure_ftp
+
+  # 9. SSL auto-renewal
+  setup_ssl_auto
+
+  # 10. Fail2ban
+  configure_fail2ban
+
+  # 11. Redis
+  configure_redis
+
+  # 12. pgAdmin
+  install_pgadmin
+
+  # 13. PM2 symlink
+  if command -v pm2 >/dev/null 2>&1; then
+    ln -sf "$(which pm2)" /usr/local/bin/pm2 2>/dev/null || true
+  fi
+
+  # 14. Systemd service
   write_node_service
+
+  # 15. Helper command
   write_helper_command
 
+  # 16. Setup phpMyAdmin
+  log "Install phpMyAdmin support"
+  if [ -f "${APP_SCRIPTS_DIR}/setup-phpmyadmin.sh" ]; then
+    bash "${APP_SCRIPTS_DIR}/setup-phpmyadmin.sh" 2>/dev/null || warn "phpMyAdmin setup skipped"
+  fi
+
+  # 17. Swap
+  setup_swap
+
+  # 18. Restart services
   service_restart mycp-server || true
   service_restart nginx || true
   service_restart vsftpd || true
@@ -759,18 +1121,10 @@ main() {
   for ver in ${INSTALL_PHP_VERSIONS}; do
     service_restart "php${ver}-fpm" 2>/dev/null || true
   done
+  [ "${INSTALL_REDIS}" = "yes" ] && service_restart redis-server 2>/dev/null || service_restart redis 2>/dev/null || true
+  [ "${INSTALL_FAIL2BAN}" = "yes" ] && service_restart fail2ban 2>/dev/null || true
 
-  log "Install phpMyAdmin support"
-  if [ -f "${APP_SCRIPTS_DIR}/setup-phpmyadmin.sh" ]; then
-    bash "${APP_SCRIPTS_DIR}/setup-phpmyadmin.sh" 2>/dev/null || warn "phpMyAdmin setup skipped (manual: sudo bash ${APP_SCRIPTS_DIR}/setup-phpmyadmin.sh)"
-  fi
-
-  # Setup swap untuk VPS RAM rendah
-  setup_swap
-
-  # Post-install: verify PHP-FPM running, paths exist, pool dir ready
   verify_services
-
   print_done
 }
 

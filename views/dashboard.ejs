@@ -50,6 +50,7 @@
             <strong id="cpuPercent">-</strong>
           </div>
           <div class="donut" id="cpuDonut" style="--value:0; --color:#2563eb"><span id="cpuDonutText">0%</span></div>
+          <div class="spark-bars" id="cpuSpark"></div>
         </article>
 
         <article class="resource-card">
@@ -58,6 +59,7 @@
             <strong id="ramPercent">-</strong>
           </div>
           <div class="donut" id="ramDonut" style="--value:0; --color:#16a34a"><span id="ramDonutText">0%</span></div>
+          <div class="resource-meter" id="ramMeter"><span style="width:0%"></span></div>
         </article>
 
         <article class="resource-card">
@@ -66,26 +68,37 @@
             <strong id="diskPercent">-</strong>
           </div>
           <div class="donut" id="diskDonut" style="--value:0; --color:#d97706"><span id="diskDonutText">0%</span></div>
+          <div id="diskList" class="disk-list"></div>
         </article>
 
         <article class="resource-card">
           <div class="resource-head">
-            <div><h3>Services</h3><small>Server services status</small></div>
-            <strong id="serviceCount">-</strong>
+            <div><h3>Network</h3><small>Total transfer</small></div>
+            <strong id="networkTotal">-</strong>
           </div>
-          <div id="serviceList"></div>
+          <div class="network-chart" id="networkChart">
+            <i style="height:10%"></i><i style="height:25%"></i><i style="height:40%"></i>
+            <i style="height:55%"></i><i style="height:70%"></i><i style="height:85%"></i>
+          </div>
+          <div class="network-row">
+            <span><span id="networkRx">0</span> MB ↓</span>
+            <span><span id="networkTx">0</span> MB ↑</span>
+          </div>
         </article>
       </section>
 
       <section class="dashboard-bottom">
         <article class="service-panel">
-          <h3>Server Resources</h3>
-          <div id="resourcesPanel"></div>
+          <div class="panel-head">
+            <h3>Services</h3>
+            <button class="ghost-btn compact" type="button" id="fixDbPrivileges" title="Fix database privileges"><i class="fa-solid fa-database"></i><span>Fix DB Priv</span></button>
+          </div>
+          <div id="servicePanel"></div>
         </article>
 
         <article class="service-panel">
-          <h3>Recent Websites</h3>
-          <div id="recentSitesPanel"></div>
+          <h3>Recent Activity</h3>
+          <div id="recentPanel"></div>
         </article>
       </section>
 

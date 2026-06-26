@@ -40,6 +40,7 @@
           <button type="button" data-tab="files"><i class="fa-solid fa-folder-open"></i><span>File Manager</span></button>
           <button type="button" data-tab="cron"><i class="fa-solid fa-clock"></i><span>Cron Jobs</span></button>
           <button type="button" data-tab="logs"><i class="fa-solid fa-file-lines"></i><span>Logs</span></button>
+          <button type="button" data-tab="services"><i class="fa-solid fa-sliders"></i><span>Services</span></button>
         </div>
 
         <div class="tab-panel active" data-panel="dashboard">
@@ -217,7 +218,7 @@
             <section class="settings-panel">
               <h3>Database Tools</h3>
               <div class="tool-actions">
-                <button class="ghost-btn" type="button" onclick="window.open('/phpmyadmin', '_blank')"><i class="fa-solid fa-up-right-from-square"></i><span>Open phpMyAdmin</span></button>
+                <button class="ghost-btn" type="button" id="openPhpMyAdmin"><i class="fa-solid fa-up-right-from-square"></i><span>Open phpMyAdmin</span></button>
                 <button class="ghost-btn" type="button" onclick="alert('pgAdmin belum terinstall')"><i class="fa-solid fa-up-right-from-square"></i><span>Open pgAdmin</span></button>
                 <button class="ghost-btn" type="button" onclick="alert('Fitur Export belum tersedia')"><i class="fa-solid fa-download"></i><span>Export</span></button>
                 <button class="ghost-btn" type="button" onclick="alert('Fitur Import belum tersedia')"><i class="fa-solid fa-upload"></i><span>Import</span></button>
@@ -353,6 +354,20 @@
             </div>
           </div>
           <pre class="terminal" id="siteLogs"></pre>
+        </div>
+
+        <div class="tab-panel" data-panel="services">
+          <div class="panel-head">
+            <h3>Site Services</h3>
+            <button class="ghost-btn compact" type="button" id="refreshServices"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Service</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="serviceRows"></tbody>
+            </table>
+          </div>
+          <div id="serviceMessage" style="margin-top:12px;padding:10px 14px;border-radius:6px;font-size:13px;display:none"></div>
         </div>
       </article>
 

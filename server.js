@@ -32,6 +32,73 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// --- phpMyAdmin Auto-Login & Redirect ---
+app.get("/api/sites/:domain/phpmyadmin-login", requireAuth, async (req, res) => {
+  const site = db.getSite(req.params.domain);
+  if (!site) return res.status(404).json({ error: "Site tidak ditemukan" });
+  const dbs = db.getDatabases(req.params.domain);
+  if (!dbs || !dbs.length) return res.status(404).json({ error: "Tidak ada database untuk site ini" });
+  const dbEntry = dbs[0];
+  const body = "pma_username=" + encodeURIComponent(dbEntry.dbUser) + "&pma_password=" + encodeURIComponent(dbEntry.password) + "&server=1";
+  const options = {
+    hostname: "127.0.0.1",
+    port: 8087,
+    path: "/index.php",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Length": Buffer.byteLength(body),
+    },
+  };
+  const loginReq = http.request(options, (loginRes) => {
+    let data = "";
+    loginRes.on("data", (chunk) => { data += chunk; });
+    loginRes.on("end", () => {
+      const cookies = loginRes.headers["set-cookie"] || [];
+      res.json({
+        ok: true,
+        cookies: cookies.map((c) => c.replace(/\bpath=\//gi, "path=/phpmyadmin/")),
+        url: "/phpmyadmin/index.php",
+        user: dbEntry.dbUser,
+        database: dbEntry.dbName,
+      });
+    });
+  });
+  loginReq.on("error", (e) => res.status(502).json({ error: e.message }));
+  loginReq.write(body);
+  loginReq.end();
+});
+
+app.get("/api/sites/:domain/phpmyadmin-redirect", requireAuth, async (req, res) => {
+  const site = db.getSite(req.params.domain);
+  if (!site) return res.status(404).json({ error: "Site tidak ditemukan" });
+  const dbs = db.getDatabases(req.params.domain);
+  if (!dbs || !dbs.length) return res.status(404).json({ error: "Tidak ada database" });
+  const dbEntry = dbs[0];
+  const body = "pma_username=" + encodeURIComponent(dbEntry.dbUser) + "&pma_password=" + encodeURIComponent(dbEntry.password) + "&server=1";
+  const options = {
+    hostname: "127.0.0.1",
+    port: 8087,
+    path: "/index.php",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Length": Buffer.byteLength(body),
+    },
+  };
+  const loginReq = http.request(options, (loginRes) => {
+    const cookies = loginRes.headers["set-cookie"] || [];
+    cookies.forEach((c) => {
+      res.setHeader("Set-Cookie", c.replace(/\bpath=\//gi, "path=/phpmyadmin/"));
+    });
+    res.writeHead(302, { Location: "/phpmyadmin/index.php" });
+    res.end();
+  });
+  loginReq.on("error", (e) => res.status(502).send("Proxy error"));
+  loginReq.write(body);
+  loginReq.end();
+});
+
 // --- phpMyAdmin Proxy ---
 app.use("/phpmyadmin", (req, res) => {
   const options = {
@@ -259,6 +326,21 @@ app.put("/api/sites/:domain/password", requireAuth, async (req, res) => {
     .execChangePassword(req.params.domain, req.body.password || "NewPass123!")
     .catch((e) => console.warn("[scripts] password stderr:", e.stderr));
   res.json({ ok: true, message: "Password berhasil diubah" });
+});
+
+app.get("/api/sites/:domain/services", requireAuth, (req, res) => {
+  const site = db.getSite(req.params.domain);
+  if (!site) return res.status(404).json({ error: "Site tidak ditemukan" });
+  const services = exec.getSiteServices(req.params.domain);
+  res.json(services);
+});
+
+app.post("/api/sites/:domain/services", requireAuth, async (req, res) => {
+  const { service, action } = req.body;
+  if (!service || !action) return res.status(400).json({ error: "service dan action wajib diisi" });
+  if (!["start", "stop", "restart"].includes(action)) return res.status(400).json({ error: "Action tidak valid" });
+  const result = exec.execServiceAction(req.params.domain, service, action);
+  res.json(result);
 });
 
 // --- PHP runtime settings (php.ini per-site) ---
@@ -635,7 +717,7 @@ app.delete(
     if (!entry)
       return res.status(404).json({ error: "Database tidak ditemukan" });
     try {
-      await exec.execDropDatabase(entry.dbName, entry.dbType);
+      await exec.execDropDatabase(entry.dbName, entry.dbType, entry.dbUser);
     } catch (e) {
       console.warn("[scripts] Gagal drop database:", e.message);
     }
@@ -795,6 +877,15 @@ app.get("/api/status", requireAuth, async (req, res) => {
 // --- Dashboard API ---
 app.get("/api/dashboard", requireAuth, (req, res) => {
   res.json(db.getDashboardStats());
+});
+
+app.post("/api/admin/fix-db-privileges", requireAuth, async (req, res) => {
+  try {
+    const result = await exec.execCommand("sudo -n " + path.join(__dirname, "scripts", "fix-db-privileges.sh"), { timeout: 60000 });
+    res.json({ ok: true, message: result.stdout || "Privileges fixed" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get("/api/server-stats", requireAuth, (req, res) => {
