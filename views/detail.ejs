@@ -1,0 +1,384 @@
+<%- include('partials/header', { title: 'Detail Website - MyControlPanel', activeNav: 'websites' }) %>
+
+      <section class="site-overview">
+        <div class="site-overview-item">
+          <span>Domain</span>
+          <strong><a id="detailDomainLink" href="#" target="_blank" rel="noopener"><span id="detailDomain">-</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a></strong>
+          <small id="detailDomainUrl"></small>
+        </div>
+        <div class="site-overview-item">
+          <span>Site User</span>
+          <strong id="detailUser">-</strong>
+        </div>
+        <div class="site-overview-item">
+          <span>IP Address</span>
+          <strong id="detailIp">-</strong>
+        </div>
+      </section>
+      <div class="detail-preview-bar">
+        <a id="detailPreviewLink" href="#" class="primary-btn compact" target="_blank" rel="noopener">
+          <i class="fa-solid fa-eye"></i><span>Preview Website</span>
+        </a>
+        <small><i class="fa-solid fa-circle-info"></i> via proxy server &mdash; tidak perlu DNS aktif</small>
+      </div>
+
+      <article class="site-detail flat-detail">
+        <div class="detail-head compact-detail-head">
+          <div>
+            <span id="detailPath">-</span>
+          </div>
+        </div>
+
+        <div class="tabs" role="tablist">
+          <button class="active" type="button" data-tab="dashboard"><i class="fa-solid fa-gauge"></i><span>Settings</span></button>
+          <button type="button" data-tab="vhost"><i class="fa-solid fa-code"></i><span>Vhost</span></button>
+          <button type="button" data-tab="databases"><i class="fa-solid fa-database"></i><span>Database</span></button>
+          <button type="button" data-tab="varnish"><i class="fa-solid fa-bolt"></i><span>Varnish Cache</span></button>
+          <button type="button" data-tab="ssl"><i class="fa-solid fa-lock"></i><span>SSL/TLS</span></button>
+          <button type="button" data-tab="security"><i class="fa-solid fa-shield-halved"></i><span>Security</span></button>
+          <button type="button" data-tab="ftp"><i class="fa-solid fa-folder-tree"></i><span>FTP</span></button>
+          <button type="button" data-tab="files"><i class="fa-solid fa-folder-open"></i><span>File Manager</span></button>
+          <button type="button" data-tab="cron"><i class="fa-solid fa-clock"></i><span>Cron Jobs</span></button>
+          <button type="button" data-tab="logs"><i class="fa-solid fa-file-lines"></i><span>Logs</span></button>
+        </div>
+
+        <div class="tab-panel active" data-panel="dashboard">
+          <div class="detail-stack">
+            <section class="settings-panel">
+              <div class="panel-head">
+                <h3>Domain Settings</h3>
+                <button class="primary-btn compact" type="button" id="domainSaveBtn"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
+              </div>
+              <div class="form-grid">
+                <label>Domain Name<input id="settingDomain" value="dsmartlampung.com"></label>
+                <label>Root Directory<input id="settingRoot" value="/home/dsmartlampung/htdocs"></label>
+              </div>
+            </section>
+
+            <section class="settings-panel">
+              <div class="panel-head">
+                <h3>Site User</h3>
+                <button class="ghost-btn compact" type="button" id="generatePasswordBtn"><i class="fa-solid fa-key"></i><span>Generate Password</span></button>
+              </div>
+              <div class="form-grid">
+                <label>Username<input id="settingUser" value="dsmartlampung"></label>
+                <label>Password<input type="password" id="settingPassword" value="************"></label>
+              </div>
+            </section>
+
+            <section class="settings-panel" id="phpSettingsPanel">
+              <div class="panel-head">
+                <h3>Runtime Settings</h3>
+                <button class="primary-btn compact" type="button" id="phpSaveBtn"><i class="fa-solid fa-floppy-disk"></i><span>Save Settings</span></button>
+              </div>
+              <div id="phpVersionWarning" style="display:none;margin-bottom:12px;padding:10px 14px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:13px;color:#78350f"></div>
+              <div class="form-grid" id="runtimeFormGrid">
+                <label>Runtime<select id="settingRuntime">
+                  <option>PHP Native</option>
+                  <option>CodeIgniter 3</option>
+                  <option>CodeIgniter 4</option>
+                  <option>Laravel</option>
+                  <option>Node.js</option>
+                  <option>Static HTML</option>
+                  <option>Reverse Proxy</option>
+                </select></label>
+                <label><span id="versionLabel">PHP Version</span><select id="settingPhpVersion">
+                  <option>PHP 8.4</option>
+                  <option>PHP 8.3</option>
+                  <option>PHP 8.2</option>
+                  <option>PHP 8.1</option>
+                  <option>PHP 8.0</option>
+                  <option>PHP 7.4</option>
+                  <option>Node.js 22</option>
+                  <option>Node.js 20</option>
+                  <option>Node.js 18</option>
+                  <option>Nginx Static</option>
+                  <option>Nginx Proxy</option>
+                </select></label>
+              </div>
+              <div id="phpSettingsFields">
+                <div class="form-grid">
+                  <label>Memory Limit
+                    <select id="phpMemory">
+                      <option value="128M">128 MB</option>
+                      <option value="256M">256 MB</option>
+                      <option value="512M" selected>512 MB</option>
+                      <option value="1024M">1 GB</option>
+                      <option value="2048M">2 GB</option>
+                    </select>
+                  </label>
+                  <label>Max Execution Time
+                    <select id="phpMaxExecution">
+                      <option value="30">30 detik</option>
+                      <option value="60" selected>1 menit</option>
+                      <option value="180">3 menit</option>
+                      <option value="300">5 menit</option>
+                    </select>
+                  </label>
+                  <label>Upload Max Filesize
+                    <select id="phpUploadMax">
+                      <option value="16M">16 MB</option>
+                      <option value="32M">32 MB</option>
+                      <option value="64M" selected>64 MB</option>
+                      <option value="128M">128 MB</option>
+                      <option value="256M">256 MB</option>
+                    </select>
+                  </label>
+                  <label>Post Max Size
+                    <select id="phpPostMax">
+                      <option value="16M">16 MB</option>
+                      <option value="32M">32 MB</option>
+                      <option value="64M" selected>64 MB</option>
+                      <option value="128M">128 MB</option>
+                      <option value="256M">256 MB</option>
+                    </select>
+                  </label>
+                  <label>Max Input Vars
+                    <select id="phpMaxInputVars">
+                      <option value="1000">1.000</option>
+                      <option value="2500">2.500</option>
+                      <option value="5000" selected>5.000</option>
+                      <option value="10000">10.000</option>
+                    </select>
+                  </label>
+                  <label>Display Errors
+                    <select id="phpDisplayErrors">
+                      <option value="on" selected>On (development)</option>
+                      <option value="off">Off (production)</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="php-status" id="phpStatus" style="margin-top:10px;padding:8px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;font-size:12px;color:#075985"></div>
+              </div>
+              <div id="nodeSettingsFields" style="display:none">
+                <div class="form-grid">
+                  <label>Port
+                    <input id="nodePort" placeholder="3000">
+                  </label>
+                  <label>PM2 Status
+                    <span id="nodePm2Status" style="padding:6px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;font-size:13px">Loading...</span>
+                    <button class="ghost-btn compact" type="button" id="nodeRestartBtn" style="margin-top:6px"><i class="fa-solid fa-play"></i><span id="nodeRestartLabel">Start</span></button>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-panel" id="phpiniPanel">
+              <div class="panel-head">
+                <h3>PHP-FPM Pool Config (php.ini)</h3>
+                <div class="inline-actions">
+                  <button class="ghost-btn compact" type="button" id="phpiniReloadBtn"><i class="fa-solid fa-rotate"></i><span>Reload</span></button>
+                  <button class="ghost-btn compact" type="button" id="phpiniRawBtn"><i class="fa-solid fa-code"></i><span>Raw Editor</span></button>
+                  <button class="primary-btn compact" type="button" id="phpiniSaveBtn"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
+                </div>
+              </div>
+              <small style="display:block;color:#6b7280;margin-bottom:8px">
+                File: <code id="phpiniPath"></code>
+              </small>
+              <textarea id="phpiniRaw" spellcheck="false"></textarea>
+            </section>
+
+            <section class="settings-panel danger-zone">
+              <div>
+                <h3>Delete Site</h3>
+                <span>Remove files, databases, users, and configs.</span>
+              </div>
+              <button class="danger-btn" type="button"><i class="fa-solid fa-trash"></i><span>Delete Site</span></button>
+            </section>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="vhost">
+          <div class="panel-head">
+            <h3>Nginx Vhost</h3>
+            <div class="inline-actions">
+              <button class="ghost-btn compact" type="button" id="vhostCopyBtn"><i class="fa-solid fa-copy"></i><span>Copy</span></button>
+              <button class="ghost-btn compact" type="button" id="vhostResetBtn"><i class="fa-solid fa-rotate-left"></i><span>Reset</span></button>
+              <button class="primary-btn compact" type="button" id="vhostSaveBtn"><i class="fa-solid fa-floppy-disk"></i><span>Save Vhost</span></button>
+            </div>
+          </div>
+          <textarea class="code-box code-editor" id="vhostCode" spellcheck="false"></textarea>
+        </div>
+
+        <div class="tab-panel" data-panel="databases">
+          <div class="detail-grid">
+            <section class="settings-panel">
+              <div class="panel-head">
+                <h3>Databases (<span id="dbCount">0</span>)</h3>
+                <button class="primary-btn compact" type="button" data-dialog="database"><i class="fa-solid fa-plus"></i><span>New Database</span></button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Database</th><th>Type</th><th>User</th><th>Action</th></tr></thead>
+                  <tbody id="databaseRows"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="settings-panel">
+              <h3>Database Tools</h3>
+              <div class="tool-actions">
+                <button class="ghost-btn" type="button" onclick="window.open('/phpmyadmin', '_blank')"><i class="fa-solid fa-up-right-from-square"></i><span>Open phpMyAdmin</span></button>
+                <button class="ghost-btn" type="button" onclick="alert('pgAdmin belum terinstall')"><i class="fa-solid fa-up-right-from-square"></i><span>Open pgAdmin</span></button>
+                <button class="ghost-btn" type="button" onclick="alert('Fitur Export belum tersedia')"><i class="fa-solid fa-download"></i><span>Export</span></button>
+                <button class="ghost-btn" type="button" onclick="alert('Fitur Import belum tersedia')"><i class="fa-solid fa-upload"></i><span>Import</span></button>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="ssl">
+          <div class="detail-grid">
+            <section class="settings-panel">
+              <div class="panel-head">
+                <h3>SSL/TLS</h3>
+                <button class="primary-btn compact" type="button"><i class="fa-solid fa-plus"></i><span>Issue SSL</span></button>
+              </div>
+              <div class="form-grid">
+                <label>Provider<select><option>Let's Encrypt</option><option>Custom Certificate</option><option>Cloudflare Origin</option></select></label>
+                <label>Default SSL<select><option>Main Domain</option><option>Wildcard</option><option>Custom</option></select></label>
+              </div>
+            </section>
+            <section class="settings-panel">
+              <h3>Certificate</h3>
+              <div class="service-row"><span>Status</span><b id="sslStatus" class="ok">Valid</b></div>
+              <div class="service-row"><span>Expires</span><b class="muted">18 Sep 2026</b></div>
+              <div class="tool-actions compact-tools">
+                <button class="ghost-btn" type="button"><i class="fa-solid fa-rotate"></i><span>Renew</span></button>
+                <button class="ghost-btn" type="button"><i class="fa-solid fa-upload"></i><span>Upload Cert</span></button>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="varnish">
+          <section class="settings-panel">
+            <div class="panel-head">
+              <h3>Varnish Cache</h3>
+              <button class="primary-btn compact" type="button"><i class="fa-solid fa-broom"></i><span>Purge Cache</span></button>
+            </div>
+            <div class="service-row"><span>Status</span><b class="muted">Disabled</b></div>
+            <div class="service-row"><span>Cache TTL</span><b class="muted">1h</b></div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-panel="security">
+          <section class="settings-panel">
+            <div class="panel-head">
+              <h3>Security</h3>
+              <button class="primary-btn compact" type="button"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
+            </div>
+            <div class="form-grid">
+              <label>Basic Auth<select><option>Disabled</option><option>Enabled</option></select></label>
+              <label>Bot Protection<select><option>Enabled</option><option>Disabled</option></select></label>
+            </div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-panel="ftp">
+          <div class="detail-grid">
+            <section class="settings-panel">
+              <div class="panel-head">
+                <h3>FTP Accounts</h3>
+                <button class="primary-btn compact" type="button"><i class="fa-solid fa-plus"></i><span>New FTP</span></button>
+              </div>
+              <div class="form-grid">
+                <label>Username<input></label>
+                <label>Password<input type="password"></label>
+                <label>Path<input></label>
+                <label>Permission<select><option>Read / Write</option><option>Read Only</option></select></label>
+              </div>
+            </section>
+            <section class="settings-panel">
+              <h3>Active Accounts</h3>
+              <div id="ftpRows"></div>
+            </section>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="files">
+          <div class="file-manager-layout">
+            <section class="settings-panel">
+              <div class="panel-head">
+                <h3>File Manager</h3>
+                <div class="inline-actions">
+                  <button class="ghost-btn compact" type="button" data-dialog="upload"><i class="fa-solid fa-upload"></i><span>Upload</span></button>
+                  <button class="ghost-btn compact" type="button" data-dialog="folder"><i class="fa-solid fa-folder-plus"></i><span>Folder</span></button>
+                  <button class="ghost-btn compact" type="button" data-dialog="file"><i class="fa-solid fa-file"></i><span>File</span></button>
+                </div>
+              </div>
+              <nav class="fm-breadcrumb" id="fmBreadcrumb"></nav>
+              <div class="table-wrap">
+                <table class="fm-table">
+                  <thead>
+                    <tr>
+                      <th class="col-name">Nama File</th>
+                      <th class="col-owner">Owner</th>
+                      <th class="col-perms">Permissions</th>
+                      <th class="col-size">Size</th>
+                      <th class="col-date">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fileRows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="cron">
+          <section class="settings-panel">
+            <div class="panel-head">
+              <h3>Cron Jobs</h3>
+              <button class="primary-btn compact" type="button" data-dialog="cron"><i class="fa-solid fa-plus"></i><span>New Cron</span></button>
+            </div>
+            <div class="form-grid">
+              <label>Schedule<input value="*/5 * * * *"></label>
+              <label>Command<input value="php spark queue:work"></label>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Schedule</th><th>Command</th><th>Status</th></tr></thead>
+                <tbody id="cronRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-panel="logs">
+          <div class="panel-head">
+            <h3>Logs</h3>
+            <div class="inline-actions">
+              <button class="ghost-btn compact" type="button"><i class="fa-solid fa-file-lines"></i><span>Access</span></button>
+              <button class="ghost-btn compact" type="button"><i class="fa-solid fa-triangle-exclamation"></i><span>Error</span></button>
+            </div>
+          </div>
+          <pre class="terminal" id="siteLogs"></pre>
+        </div>
+      </article>
+
+<%
+  const modals = `<div class="modal-backdrop" id="detailDialog" aria-hidden="true">
+    <div class="modal cli-root" role="dialog" aria-modal="true" aria-labelledby="detailDialogTitle">
+      <div class="cli-header">
+        <span class="cli-title" id="detailDialogTitle">Dialog</span>
+        <div class="editor-actions" id="detailDialogActions">
+          <button class="icon-btn" type="button" id="detailDialogClose" title="Tutup"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <form id="detailDialogForm" class="create-form"></form>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="fileEditor" aria-hidden="true">
+    <div class="modal cli-root full-editor" role="dialog" aria-modal="true">
+      <div class="cli-header">
+        <span class="cli-title"><i class="fa-solid fa-file-code"></i> <span id="editorFileName">File</span></span>
+        <div class="editor-actions">
+          <button class="icon-btn" type="button" id="fileEditorSave" title="Save"><i class="fa-solid fa-floppy-disk"></i></button>
+          <button class="icon-btn" type="button" id="fileEditorClose" title="Tutup"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <textarea id="editorTextarea"></textarea>
+    </div>
+  </div>`;
+%>
+<%- include('partials/footer', { modals, extraScripts: '<script src="/assets/js/detail.js"></script>' }) %>

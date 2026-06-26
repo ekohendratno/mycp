@@ -22,5 +22,5 @@ load_site "${DOMAIN}"
 TARGET="${ROOT_DIR}/${REL_PATH}"
 [ -d "${TARGET}" ] || fail "Folder tidak ditemukan: ${REL_PATH}"
 
-printf 'type\tname\tsize\tmodified\n'
-find "${TARGET}" -maxdepth 1 -mindepth 1 -printf '%y\t%f\t%s\t%TY-%Tm-%Td %TH:%TM\n' | sort
+printf 'type\tname\tsize\tmodified\towner\tperms\n'
+find "${TARGET}" -maxdepth 1 -mindepth 1 -printf '%y\t%f\t%s\t%TY-%Tm-%Td %TH:%TM\t%u\t%m\n' | sort

@@ -23,6 +23,7 @@ load_site "${DOMAIN}"
 
 rm -f "/etc/nginx/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}" "/etc/nginx/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
 rm -f "$(site_file "${DOMAIN}")"
+rm -f /etc/php/*/fpm/pool.d/mycp-${DOMAIN}.conf
 reload_nginx
 
 if [ "${DELETE_HOME}" = "yes" ] && [ -n "${ROOT_DIR:-}" ] && [[ "${ROOT_DIR}" == /home/*/htdocs* ]]; then

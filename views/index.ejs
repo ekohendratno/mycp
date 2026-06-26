@@ -1,0 +1,165 @@
+<%- include('partials/header', { title: 'MyControlPanel', activeNav: 'websites' }) %>
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Workspace</p>
+          <h1>Websites</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" type="button" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+          <button class="primary-btn" type="button" id="openCreateSite">
+            <i class="fa-solid fa-plus"></i>
+            <span>Tambah Website</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="summary-strip" aria-label="Ringkasan server">
+        <div class="metric">
+          <span class="metric-icon green"><i class="fa-solid fa-globe"></i></span>
+          <div>
+            <small>Total Website</small>
+            <strong id="totalSites">6</strong>
+          </div>
+        </div>
+        <div class="metric">
+          <span class="metric-icon blue"><i class="fa-solid fa-shield-halved"></i></span>
+          <div>
+            <small>SSL Aktif</small>
+            <strong>5</strong>
+          </div>
+        </div>
+        <div class="metric">
+          <span class="metric-icon amber"><i class="fa-solid fa-microchip"></i></span>
+          <div>
+            <small>CPU</small>
+            <strong>24%</strong>
+          </div>
+        </div>
+        <div class="metric">
+          <span class="metric-icon red"><i class="fa-solid fa-memory"></i></span>
+          <div>
+            <small>RAM</small>
+            <strong>1.8 / 8 GB</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="list-toolbar">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="siteSearch" type="search" placeholder="Cari domain, framework, atau status">
+          </div>
+          <div class="segmented" role="group" aria-label="Filter website">
+            <button class="active" type="button" data-filter="all">Semua</button>
+            <button type="button" data-filter="running">Running</button>
+            <button type="button" data-filter="issue">Issue</button>
+          </div>
+        </div>
+
+        <div class="sites-list" id="sitesGrid"></div>
+      </section>
+
+<%
+  const modals = `<div class="modal-backdrop" id="createSiteModal" aria-hidden="true">
+    <div class="modal cli-root" role="dialog" aria-modal="true" aria-labelledby="createSiteTitle">
+      <div class="cli-header">
+        <span class="cli-title"><i class="fa-solid fa-plus-circle"></i> Tambah Website</span>
+        <div class="editor-actions">
+          <button class="primary-btn" type="submit" form="createSiteForm"><i class="fa-solid fa-rocket"></i><span>Buat Website</span></button>
+          <button class="icon-btn" type="button" id="closeCreateSite" title="Tutup"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <form id="createSiteForm" class="create-form">
+        <label>Domain
+          <input name="domain" required placeholder="example.com" autocomplete="off">
+          <span class="domain-hint" id="domainHint" style="font-size:12px;font-weight:400;min-height:18px"></span>
+        </label>
+        <div class="form-grid">
+          <label>Username
+            <input name="username" required placeholder="example">
+          </label>
+          <label>Password
+            <input name="password" type="password" required placeholder="Minimal 8 karakter">
+          </label>
+        </div>
+        <div class="form-grid">
+          <label>Bahasa / Framework
+            <select name="runtime">
+              <option>PHP Native</option>
+              <option>CodeIgniter 3</option>
+              <option selected>CodeIgniter 4</option>
+              <option>Laravel</option>
+              <option>Node.js</option>
+              <option>Static HTML</option>
+              <option>Reverse Proxy</option>
+            </select>
+          </label>
+          <label>Versi PHP / Node
+            <select name="version">
+              <option selected>PHP 8.3</option>
+              <option>PHP 8.2</option>
+              <option>PHP 7.4</option>
+              <option>Node.js 20</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-grid">
+          <label>Database
+            <select name="database">
+              <option selected>None</option>
+              <option>MySQL</option>
+              <option>MariaDB</option>
+            </select>
+          </label>
+          <label>Port
+            <input name="port" placeholder="80">
+          </label>
+        </div>
+        <input type="hidden" name="root">
+        <div class="switch-grid">
+          <label class="switch"><input type="checkbox" name="ftp"><span></span>FTP</label>
+          <label class="switch"><input type="checkbox" name="databaseCreate"><span></span>Database</label>
+          <label class="switch" id="cloneSourceWrap"><input type="checkbox" name="cloneSource"><span></span>Source Code</label>
+          <label class="switch"><input type="checkbox" name="www" checked><span></span>WWW</label>
+          <label class="switch"><input type="checkbox" name="tunnel"><span></span>Tunnel</label>
+        </div>
+        <label>SSL
+          <select name="ssl">
+            <option value="none">None</option>
+            <option value="self" selected>Self-Signed</option>
+            <option value="letsencrypt">Let's Encrypt</option>
+          </select>
+        </label>
+      </form>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="progressModal" aria-hidden="true">
+    <div class="modal cli-root" role="dialog" aria-modal="true">
+      <div class="cli-header">
+        <span class="cli-title"><i class="fa-solid fa-spinner"></i> Membuat Website</span>
+      </div>
+      <div class="progress-body">
+        <div id="progressSteps" class="progress-steps">
+          <div class="progress-step" data-step="user"><i class="fa-regular fa-circle"></i><span>Membuat user</span></div>
+          <div class="progress-step" data-step="pool"><i class="fa-regular fa-circle"></i><span>Konfigurasi PHP-FPM pool</span></div>
+          <div class="progress-step" data-step="vhost"><i class="fa-regular fa-circle"></i><span>Konfigurasi Nginx vhost</span></div>
+          <div class="progress-step" data-step="database"><i class="fa-regular fa-circle"></i><span>Membuat database</span></div>
+          <div class="progress-step" data-step="ssl"><i class="fa-regular fa-circle"></i><span>Issue SSL certificate</span></div>
+          <div class="progress-step" data-step="ftp"><i class="fa-regular fa-circle"></i><span>Aktifkan FTP</span></div>
+          <div class="progress-step" data-step="done"><i class="fa-regular fa-circle"></i><span>Selesai</span></div>
+        </div>
+      </div>
+      <div id="progressSuccess" class="progress-success" style="display:none">
+        <i class="fa-solid fa-circle-check success-icon"></i>
+        <h3>Website berhasil dibuat!</h3>
+        <p id="progressDomain"></p>
+        <button class="primary-btn" type="button" id="closeProgressSuccess"><i class="fa-solid fa-check"></i><span>OK</span></button>
+      </div>
+      <pre id="progressLog" class="progress-log" style="display:none"></pre>
+    </div>
+  </div>`;
+%>
+<%- include('partials/footer', { modals, extraScripts: '<script src="/assets/js/app.js"></script>' }) %>

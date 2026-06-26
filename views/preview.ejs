@@ -1,0 +1,19 @@
+<%- include('partials/header', { title: 'Preview ' + domain + ' - MyControlPanel', activeNav: 'websites' }) %>
+
+<section style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <h2 style="margin:0;font-size:18px"><%= domain %></h2>
+  <a href="/preview-proxy/<%= domain %>/" target="_blank" rel="noopener" class="primary-btn compact"><i class="fa-solid fa-up-right-from-square"></i><span>Open in new tab</span></a>
+  <a href="/detail?site=<%= domain %>" class="ghost-btn compact"><i class="fa-solid fa-arrow-left"></i><span>Back to detail</span></a>
+</section>
+
+<div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;height:calc(100vh - 200px)">
+  <iframe src="/preview-proxy/<%= domain %>/" style="width:100%;height:100%;border:none" title="Preview <%= domain %>"></iframe>
+</div>
+
+<p style="margin-top:8px;color:#9aa3ad;font-size:13px">
+  <i class="fa-solid fa-info-circle"></i>
+  Preview via <strong><%= ip %></strong> dengan Host header <strong><%= domain %></strong>.
+  Tidak memerlukan DNS — konten disajikan melalui proxy server.
+</p>
+
+<%- include('partials/footer') %>

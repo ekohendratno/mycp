@@ -1,0 +1,103 @@
+<%- include('partials/header', { title: 'Dashboard - MyControlPanel', activeNav: 'dashboard' }) %>
+<link rel="stylesheet" href="/assets/vendor/xterm/xterm.css">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Server Overview</p>
+          <h1>Dashboard</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" type="button" id="refreshDashboard" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+          <button class="ghost-btn" type="button" id="openCli"><i class="fa-solid fa-terminal"></i><span>Open CLI</span></button>
+        </div>
+      </header>
+
+      <section class="summary-strip" aria-label="Ringkasan server">
+        <div class="metric">
+          <span class="metric-icon green"><i class="fa-solid fa-globe"></i></span>
+          <div>
+            <small>Websites</small>
+            <strong id="dashboardSites">-</strong>
+          </div>
+        </div>
+        <div class="metric">
+          <span class="metric-icon blue"><i class="fa-solid fa-database"></i></span>
+          <div>
+            <small>Databases</small>
+            <strong id="dashboardDatabases">-</strong>
+          </div>
+        </div>
+        <div class="metric">
+          <span class="metric-icon amber"><i class="fa-solid fa-clock"></i></span>
+          <div>
+            <small>Uptime</small>
+            <strong id="dashboardUptime">-</strong>
+          </div>
+        </div>
+        <div class="metric">
+          <span class="metric-icon red"><i class="fa-solid fa-shield-halved"></i></span>
+          <div>
+            <small>SSL Aktif</small>
+            <strong id="dashboardSsl">-</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="resource-card">
+          <div class="resource-head">
+            <div><h3>CPU Usage</h3><small id="cpuDetail">- cores, load average -</small></div>
+            <strong id="cpuPercent">-</strong>
+          </div>
+          <div class="donut" id="cpuDonut" style="--value:0; --color:#2563eb"><span id="cpuDonutText">0%</span></div>
+        </article>
+
+        <article class="resource-card">
+          <div class="resource-head">
+            <div><h3>RAM Usage</h3><small id="ramDetail">- GB dari - GB</small></div>
+            <strong id="ramPercent">-</strong>
+          </div>
+          <div class="donut" id="ramDonut" style="--value:0; --color:#16a34a"><span id="ramDonutText">0%</span></div>
+        </article>
+
+        <article class="resource-card">
+          <div class="resource-head">
+            <div><h3>Disk Usage</h3><small id="diskDetail">- GB dari - GB</small></div>
+            <strong id="diskPercent">-</strong>
+          </div>
+          <div class="donut" id="diskDonut" style="--value:0; --color:#d97706"><span id="diskDonutText">0%</span></div>
+        </article>
+
+        <article class="resource-card">
+          <div class="resource-head">
+            <div><h3>Services</h3><small>Server services status</small></div>
+            <strong id="serviceCount">-</strong>
+          </div>
+          <div id="serviceList"></div>
+        </article>
+      </section>
+
+      <section class="dashboard-bottom">
+        <article class="service-panel">
+          <h3>Server Resources</h3>
+          <div id="resourcesPanel"></div>
+        </article>
+
+        <article class="service-panel">
+          <h3>Recent Websites</h3>
+          <div id="recentSitesPanel"></div>
+        </article>
+      </section>
+
+<%
+  const modals = `<div class="modal-backdrop" id="cliModal" aria-hidden="true">
+    <div class="modal cli-root" role="dialog" aria-modal="true" aria-labelledby="cliModalTitle">
+      <div class="cli-header">
+        <span class="cli-title"><i class="fa-solid fa-terminal"></i> Terminal</span>
+        <button class="icon-btn" type="button" id="closeCli" title="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="terminal-container"></div>
+    </div>
+  </div>`;
+%>
+<%- include('partials/footer', { modals, extraScripts: '<script src="/assets/vendor/xterm/xterm.js"></script><script src="/assets/vendor/xterm/addon-fit.js"></script><script src="/assets/js/dashboard.js"></script>' }) %>

@@ -1,26 +1,32 @@
-const isLoginPage = location.pathname.endsWith('/login.html') || location.pathname.endsWith('login.html');
+const isLoginPage = /^\/?login/.test(location.pathname);
 
-if (!isLoginPage && sessionStorage.getItem('mycp-auth') !== '1') {
-  window.location.href = 'login.html';
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) {
+      const data = await res.json();
+      document.querySelectorAll('[data-auth-user]').forEach(el => el.textContent = data.username);
+      if (isLoginPage) window.location.href = '/';
+    } else {
+      if (!isLoginPage) window.location.href = '/login';
+    }
+  } catch (e) {
+    if (!isLoginPage) window.location.href = '/login';
+  }
 }
 
 function initAuthUi() {
-  const userName = sessionStorage.getItem('mycp-user') || 'admin';
-  document.querySelectorAll('[data-auth-user]').forEach((el) => {
-    el.textContent = userName;
-  });
-
-  document.querySelectorAll('[data-logout]').forEach((button) => {
-    button.addEventListener('click', () => {
-      sessionStorage.removeItem('mycp-auth');
-      sessionStorage.removeItem('mycp-user');
-      window.location.href = 'login.html';
+  document.querySelectorAll('[data-logout]').forEach(button => {
+    button.addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login';
     });
   });
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAuthUi);
+  document.addEventListener('DOMContentLoaded', () => { checkAuth(); initAuthUi(); });
 } else {
+  checkAuth();
   initAuthUi();
 }
