@@ -1,5 +1,9 @@
 # MyControlPanel
 
+<p align="center">
+  <img src="assets/img/logo.png" alt="MyControlPanel Logo" width="200">
+</p>
+
 Panel manajemen hosting ringan berbasis Node.js + Bash, untuk mengelola
 website (PHP, Node.js, Static) plus database (MySQL/MariaDB, PostgreSQL),
 FTP, cron jobs, dan SSL.
