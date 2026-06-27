@@ -202,29 +202,18 @@
         </div>
 
         <div class="tab-panel" data-panel="databases">
-          <div class="detail-grid">
-            <section class="settings-panel">
-              <div class="panel-head">
-                <h3>Databases (<span id="dbCount">0</span>)</h3>
-                <button class="primary-btn compact" type="button" data-dialog="database"><i class="fa-solid fa-plus"></i><span>New Database</span></button>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Database</th><th>Type</th><th>User</th><th>Action</th></tr></thead>
-                  <tbody id="databaseRows"></tbody>
-                </table>
-              </div>
-            </section>
-            <section class="settings-panel">
-              <h3>Database Tools</h3>
-              <div class="tool-actions">
-                <button class="ghost-btn" type="button" id="openPhpMyAdmin"><i class="fa-solid fa-up-right-from-square"></i><span>Open phpMyAdmin</span></button>
-                <button class="ghost-btn" type="button" onclick="alert('pgAdmin belum terinstall')"><i class="fa-solid fa-up-right-from-square"></i><span>Open pgAdmin</span></button>
-                <button class="ghost-btn" type="button" onclick="alert('Fitur Export belum tersedia')"><i class="fa-solid fa-download"></i><span>Export</span></button>
-                <button class="ghost-btn" type="button" onclick="alert('Fitur Import belum tersedia')"><i class="fa-solid fa-upload"></i><span>Import</span></button>
-              </div>
-            </section>
-          </div>
+          <section class="settings-panel">
+            <div class="panel-head">
+              <h3>Databases (<span id="dbCount">0</span>)</h3>
+              <button class="primary-btn compact" type="button" data-dialog="database"><i class="fa-solid fa-plus"></i><span>New Database</span></button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Database</th><th>Type</th><th>User</th><th>Tools</th></tr></thead>
+                <tbody id="databaseRows"></tbody>
+              </table>
+            </div>
+          </section>
         </div>
 
         <div class="tab-panel" data-panel="ssl">

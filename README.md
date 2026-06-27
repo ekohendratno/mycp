@@ -225,7 +225,7 @@ mycp url                    # URL panel
 
 ### Port 8089 sudah dipakai
 
-Edit `server.js` atau ubah environment:
+Edit `server/config.js` atau ubah environment:
 
 ```bash
 sudo systemctl edit mycp-server
@@ -331,7 +331,7 @@ sudo systemctl restart php7.4-fpm
 | File                           | Tujuan                            |
 | ------------------------------ | --------------------------------- |
 | `install.sh`                   | Installer multi-distro            |
-| `server.js`                    | Backend Express Node.js           |
+| `server/app.js` + `server/routes/*` | Backend Express modular (16 route files) |
 | `db.js`                        | JSON-based data store             |
 | `scripts/site-create.sh`       | Provisioning website baru         |
 | `scripts/phpini-save.sh`       | PHP-FPM pool config + isolation   |
