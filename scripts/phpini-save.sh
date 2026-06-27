@@ -147,6 +147,42 @@ chown root:root "${POOL_FILE}"
 
 # Validate config lalu reload
 php-fpm${PHP_VERSION} -t 2>&1 | grep -v "NOTICE:" || true
-service_restart "php${PHP_VERSION}-fpm" || systemctl restart "php${PHP_VERSION}-fpm" || true
+POOL_SOCKET="/run/php-fpm/mycp-${DOMAIN}.sock"
+# Cari PID FPM master dari systemctl (lebih akurat)
+FPM_MASTER_PID=""
+if command -v systemctl >/dev/null 2>&1; then
+  FPM_MASTER_PID="$(systemctl show -p MainPID "php${PHP_VERSION}-fpm" 2>/dev/null | sed 's/MainPID=//')"
+fi
+if [ -z "${FPM_MASTER_PID}" ] || [ "${FPM_MASTER_PID}" = "0" ]; then
+  # Fallback: cari dari ps (cocokkan path config)
+  FPM_MASTER_PID="$(ps aux | grep "php-fpm: master.*/etc/php/${PHP_VERSION}/fpm/" | grep -v grep | awk '{print $2}' | head -1)"
+fi
+if [ -n "${FPM_MASTER_PID}" ] && [ "${FPM_MASTER_PID}" != "0" ]; then
+  kill -USR2 "${FPM_MASTER_PID}" 2>/dev/null || true
+  log "FPM USR2 sent to PID ${FPM_MASTER_PID}"
+  # Tunggu socket muncul (max 5 detik)
+  for i in 1 2 3 4 5; do
+    [ -S "${POOL_SOCKET}" ] && break
+    sleep 1
+  done
+else
+  log "FPM master PID untuk PHP ${PHP_VERSION} tidak ditemukan"
+fi
+# Jika socket belum ada, restart paksa
+if [ ! -S "${POOL_SOCKET}" ]; then
+  log "Socket ${POOL_SOCKET} belum ada, restart FPM paksa"
+  rm -f "${POOL_SOCKET}" "/run/php/php${PHP_VERSION}-fpm.sock" 2>/dev/null || true
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl restart "php${PHP_VERSION}-fpm" 2>/dev/null || true
+  else
+    service "php${PHP_VERSION}-fpm" restart 2>/dev/null || true
+  fi
+  # Tunggu socket setelah restart
+  for i in 1 2 3 4 5; do
+    [ -S "${POOL_SOCKET}" ] && break
+    sleep 1
+  done
+fi
+[ -S "${POOL_SOCKET}" ] && log "FPM socket ready: ${POOL_SOCKET}" || log "WARNING: Socket ${POOL_SOCKET} masih belum ada"
 
 log "PHP-FPM pool tersimpan: ${POOL_FILE}"

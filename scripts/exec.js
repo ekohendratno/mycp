@@ -44,9 +44,9 @@ function runScript(scriptName, args) {
 }
 
 const RUNTIME_TO_SCRIPT = {
-  "CodeIgniter 4": "php",
-  "CodeIgniter 3": "php",
-  Laravel: "php",
+  "CodeIgniter 4": "ci4",
+  "CodeIgniter 3": "ci3",
+  Laravel: "laravel",
   "PHP Native": "php",
   "Node.js": "node",
   "Static HTML": "static",
@@ -54,6 +54,9 @@ const RUNTIME_TO_SCRIPT = {
 };
 
 const SCRIPT_TO_RUNTIME = {
+  ci4: "CodeIgniter 4",
+  ci3: "CodeIgniter 3",
+  laravel: "Laravel",
   php: "CodeIgniter 4",
   node: "Node.js",
   static: "Static HTML",
@@ -132,7 +135,7 @@ function mapFtp(ftp) {
 
 async function execCreateSite(params) {
   const runtime = mapRuntime(params.runtime);
-  const isPhp = runtime === "php";
+  const isPhp = runtime !== "node" && runtime !== "static" && runtime !== "reverse-proxy";
   const isNode = runtime === "node";
   const args = [
     "--domain",

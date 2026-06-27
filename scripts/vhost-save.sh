@@ -72,10 +72,16 @@ else
       # Prioritaskan socket pool per-site (mycp-<domain>.sock) kalau tersedia,
       # fallback ke socket global jika pool belum dibuat.
       POOL_SOCKET="/run/php-fpm/mycp-${DOMAIN}.sock"
+      # Tunggu sebentar kalau socket belum muncul (FPM mungkin masih reload)
+      for i in 1 2 3; do
+        [ -S "${POOL_SOCKET}" ] && break
+        sleep 1
+      done
       if [ -S "${POOL_SOCKET}" ]; then
         SOCKET="${POOL_SOCKET}"
       else
         SOCKET="$(php_fpm_socket "${PHP_VERSION}")"
+        warn "Fallback ke global socket untuk ${DOMAIN}: ${SOCKET}"
       fi
       cat >"${CONF_PATH}" <<NGINX
 server {

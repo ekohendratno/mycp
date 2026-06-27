@@ -49,7 +49,7 @@ function updateVersionOptions() {
         : "80";
   var cloneLabel = document.querySelector("#cloneSourceWrap");
   if (cloneLabel) {
-    var show = ["Laravel", "CodeIgniter 3", "CodeIgniter 4", "Node.js"].includes(runtime);
+    var show = ["Laravel", "CodeIgniter 3", "CodeIgniter 4"].includes(runtime);
     cloneLabel.style.display = show ? "" : "none";
   }
 }
@@ -97,8 +97,9 @@ async function renderSites() {
         <td>${site.ssl ? '<span class="status running">SSL</span>' : '<span class="status issue">No SSL</span>'}</td>
         <td><span class="status ${site.status}">${site.status === "running" ? "Running" : "Issue"}</span></td>
         <td>
-          <button class="ghost-btn compact-action" type="button" data-index="${realIndex}"><i class="fa-regular fa-eye"></i></button>
+          <button class="ghost-btn compact-action" type="button" data-index="${realIndex}" title="Detail"><i class="fa-regular fa-eye"></i></button>
           <button class="ghost-btn compact-action preview-btn" type="button" data-domain="${site.domain}" title="Preview"><i class="fa-regular fa-window-restore"></i></button>
+          <button class="ghost-btn compact-action terminal-btn" type="button" data-path="${site.path || '/home/' + site.username + '/htdocs'}" title="Terminal"><i class="fa-solid fa-terminal" style="color:#6366f1"></i></button>
           <button class="ghost-btn compact-action delete-btn" type="button" data-index="${realIndex}" title="Hapus" style="color:#f87171"><i class="fa-regular fa-trash-can"></i></button>
         </td>
       </tr>
@@ -152,13 +153,23 @@ function closeModal() {
   form.elements.ssl.value = "self";
   form.elements.ftp.checked = false;
   form.elements.databaseCreate.checked = false;
-  form.elements.cloneSource.checked = false;
+  form.elements.cloneSource.checked = true;
   form.elements.www.checked = true;
   form.elements.tunnel.checked = false;
   form.elements.ftp.checked = true;
 }
 
 grid.addEventListener("click", (event) => {
+  const terminalBtn = event.target.closest(".terminal-btn");
+  if (terminalBtn) {
+    var path = terminalBtn.dataset.path;
+    window.open(
+      "/terminal?cwd=" + encodeURIComponent(path),
+      "_blank",
+      "width=900,height=500",
+    );
+    return;
+  }
   const previewBtn = event.target.closest(".preview-btn");
   if (previewBtn) {
     window.open(
@@ -231,7 +242,7 @@ form.addEventListener("submit", async (event) => {
 
   // Show progress modal with spinning steps
   closeModal();
-  showProgress(domain);
+  showProgress(domain, runtime);
   try {
     await createSite(siteData);
     completeProgress(domain);
@@ -240,17 +251,38 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-function showProgress(domain) {
+var STEP_MAP = {
+  user: "Membuat user",
+  pool: "Konfigurasi PHP-FPM pool",
+  vhost: "Konfigurasi Nginx vhost",
+  database: "Membuat database",
+  ssl: "Issue SSL certificate",
+  ftp: "Aktifkan FTP",
+  done: "Selesai",
+};
+
+var STEPS_BY_RUNTIME = {
+  "PHP Native":   ["user", "pool", "vhost", "database", "ssl", "ftp", "done"],
+  "CodeIgniter 3": ["user", "pool", "vhost", "database", "ssl", "ftp", "done"],
+  "CodeIgniter 4": ["user", "pool", "vhost", "database", "ssl", "ftp", "done"],
+  Laravel:         ["user", "pool", "vhost", "database", "ssl", "ftp", "done"],
+  "Node.js":       ["user", "vhost", "database", "ssl", "ftp", "done"],
+  "Static HTML":   ["user", "vhost", "ssl", "ftp", "done"],
+  "Reverse Proxy": ["user", "vhost", "ssl", "done"],
+};
+
+function showProgress(domain, runtime) {
+  var steps = STEPS_BY_RUNTIME[runtime] || STEPS_BY_RUNTIME["PHP Native"];
+  var container = document.querySelector("#progressSteps");
+  container.innerHTML = steps.map(function(k) {
+    return '<div class="progress-step" data-step="' + k + '"><i class="fa-regular fa-circle"></i><span>' + (STEP_MAP[k] || k) + '</span></div>';
+  }).join("");
   document.querySelector("#progressModal").classList.add("open");
   document.querySelector("#progressModal").setAttribute("aria-hidden", "false");
   document.querySelector("#progressDomain").textContent = domain;
   document.querySelector("#progressSteps").style.display = "";
   document.querySelector("#progressSuccess").style.display = "none";
   document.querySelector("#progressLog").style.display = "none";
-  document.querySelectorAll(".progress-step").forEach(function(s) {
-    s.className = "progress-step";
-    s.querySelector("i").className = "fa-regular fa-circle";
-  });
   animateSteps();
 }
 

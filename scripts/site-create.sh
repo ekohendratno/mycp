@@ -67,14 +67,33 @@ if [ "${CLONE_SOURCE}" = "yes" ]; then
       if [ ! -f "${ROOT_DIR}/artisan" ]; then
         LARAVEL_REQ="laravel/laravel"
         [ -n "${LARAVEL_VERSION}" ] && LARAVEL_REQ="laravel/laravel:^${LARAVEL_VERSION}"
-        su - "${USERNAME}" -c "composer create-project ${LARAVEL_REQ} ${ROOT_DIR} --no-interaction 2>&1" || log "WARNING: composer create-project laravel/laravel gagal"
+        su - "${USERNAME}" -c "composer create-project ${LARAVEL_REQ} ${ROOT_DIR} --no-interaction --no-dev 2>&1" || log "WARNING: composer create-project laravel/laravel gagal"
         chmod -R 775 "${ROOT_DIR}/storage" "${ROOT_DIR}/bootstrap/cache" 2>/dev/null || true
         su - "${USERNAME}" -c "php ${ROOT_DIR}/artisan key:generate 2>&1" || true
+        # Konfigurasi .env sesuai database yang dipilih
+        if [ -f "${ROOT_DIR}/.env" ]; then
+          if [ "${DB_TYPE}" = "mysql" ] || [ "${DB_TYPE}" = "mariadb" ]; then
+            DB_NAME="${USERNAME}_db"
+            DB_USER="${USERNAME}_dbu"
+            sed -i "s/DB_CONNECTION=.*/DB_CONNECTION=mysql/" "${ROOT_DIR}/.env"
+            sed -i "s/# DB_HOST=.*/DB_HOST=127.0.0.1/" "${ROOT_DIR}/.env"
+            sed -i "s/DB_HOST=.*/DB_HOST=127.0.0.1/" "${ROOT_DIR}/.env"
+            sed -i "s/# DB_PORT=.*/DB_PORT=3306/" "${ROOT_DIR}/.env"
+            sed -i "s/DB_PORT=.*/DB_PORT=3306/" "${ROOT_DIR}/.env"
+            sed -i "s/# DB_DATABASE=.*/DB_DATABASE=${DB_NAME}/" "${ROOT_DIR}/.env"
+            sed -i "s/DB_DATABASE=.*/DB_DATABASE=${DB_NAME}/" "${ROOT_DIR}/.env"
+            sed -i "s/# DB_USERNAME=.*/DB_USERNAME=${DB_USER}/" "${ROOT_DIR}/.env"
+            sed -i "s/DB_USERNAME=.*/DB_USERNAME=${DB_USER}/" "${ROOT_DIR}/.env"
+            sed -i "s/# DB_PASSWORD=.*/DB_PASSWORD=${PASSWORD}/" "${ROOT_DIR}/.env"
+            sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=${PASSWORD}/" "${ROOT_DIR}/.env"
+          fi
+          chown "${USERNAME}:${USERNAME}" "${ROOT_DIR}/.env"
+        fi
         chown -R "${USERNAME}:www-data" "${ROOT_DIR}/storage" "${ROOT_DIR}/bootstrap/cache" 2>/dev/null || true
       fi ;;
     "codeigniter 4"|ci4)
       if [ ! -f "${ROOT_DIR}/spark" ]; then
-        su - "${USERNAME}" -c "composer create-project codeigniter4/appstarter ${ROOT_DIR} --no-interaction 2>&1" || log "WARNING: composer create-project codeigniter4/appstarter gagal"
+        su - "${USERNAME}" -c "composer create-project codeigniter4/appstarter ${ROOT_DIR} --no-interaction --no-dev 2>&1" || log "WARNING: composer create-project codeigniter4/appstarter gagal"
         chown -R "${USERNAME}:${USERNAME}" "${ROOT_DIR}" 2>/dev/null || true
       fi ;;
     "codeigniter 3"|ci3)
@@ -109,47 +128,7 @@ if [ "${RUNTIME}" = "node" ]; then
   su - "${USERNAME}" -c "pm2 start '${ROOT_DIR}/server.js' --name '${DOMAIN}' --silent 2>&1" || true
   su - "${USERNAME}" -c "pm2 save --silent 2>&1" || true
 elif [ ! -f "${ROOT_DIR}/index.html" ] && [ ! -f "${ROOT_DIR}/index.php" ]; then
-  # Default landing page: hello world + versi PHP/Node yang aktif.
-  # Dipakai baik untuk runtime php maupun node (php menghasilkan versi PHP,
-  # node fallback menampilkan info server Node).
-  cat >"${ROOT_DIR}/index.php" <<PHP
-<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<title>${DOMAIN}</title>
-<style>
-  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif;
-         background: #0f172a; color: #e2e8f0; margin: 0; padding: 60px 20px;
-         display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .card { background: #1e293b; border: 1px solid #334155; border-radius: 14px;
-          padding: 36px 48px; box-shadow: 0 14px 36px rgba(0,0,0,0.35);
-          text-align: center; max-width: 640px; }
-  h1 { margin: 0 0 12px; font-size: 34px; color: #60a5fa; }
-  p.lead { font-size: 16px; color: #cbd5e1; margin: 0 0 24px; }
-  pre { background: #0b1220; border: 1px solid #334155; border-radius: 10px;
-        padding: 16px 20px; text-align: left; font-family: "JetBrains Mono", monospace;
-        font-size: 13px; color: #93c5fd; margin: 0; overflow-x: auto; }
-  small { display: block; margin-top: 20px; color: #64748b; font-size: 12px; }
-</style>
-</head>
-<body>
-  <div class="card">
-    <h1>Hello, world!</h1>
-    <p class="lead">Website <strong>${DOMAIN}</strong> berhasil dibuat.</p>
-    <pre><?php
-echo "PHP version : " . PHP_VERSION . PHP_EOL;
-echo "PHP SAPI    : " . PHP_SAPI . PHP_EOL;
-echo "Server      : " . (\$_SERVER['SERVER_SOFTWARE'] ?? 'unknown') . PHP_EOL;
-echo "Document    : " . (\$_SERVER['DOCUMENT_ROOT'] ?? '') . PHP_EOL;
-echo "Runtime     : " . (\$_SERVER['SERVER_NAME'] ?? '') . PHP_EOL;
-echo "Time        : " . date('Y-m-d H:i:s T') . PHP_EOL;
-?></pre>
-    <small>Default landing page &mdash; replace dengan aplikasi Anda.</small>
-  </div>
-</body>
-</html>
-PHP
+  sed "s|__DOMAIN__|${DOMAIN}|g" "${SCRIPT_DIR}/../templates/index.php.template" > "${ROOT_DIR}/index.php"
   chown "${USERNAME}:${USERNAME}" "${ROOT_DIR}/index.php"
 fi
 
@@ -201,4 +180,84 @@ elif [ "${SSL_ENABLED}" = "self" ]; then
 fi
 
 write_site_metadata "${DOMAIN}" "${USERNAME}" "${ROOT_DIR}" "${RUNTIME}" "${PHP_VERSION}" "${NODE_VERSION}" "${APP_PORT}" "${DB_TYPE}" "${SSL_ENABLED}" "${FTP_ENABLED}" "running"
+
+# === Verifikasi dan auto-fixing ===
+log "Memverifikasi website..."
+
+# 1. Pastikan framework punya .env
+if [ "${CLONE_SOURCE}" = "yes" ]; then
+  case "${RUNTIME}" in
+    ci4)
+      if [ ! -f "${ROOT_DIR}/.env" ] && [ -f "${ROOT_DIR}/env" ]; then
+        cp "${ROOT_DIR}/env" "${ROOT_DIR}/.env"
+        chown "${USERNAME}:${USERNAME}" "${ROOT_DIR}/.env"
+        log "Auto-fix: .env dibuat dari template"
+      fi
+      # Update dependensi biar kompatibel dengan PHP versi terbaru
+      su - "${USERNAME}" -c "cd '${ROOT_DIR}' && composer update --no-interaction --no-dev 2>&1" || true
+      # PHP 8.4+ bug: OPcache kadang salah resolve internal function
+      # (misal: array_map jadi str_rot13). Matikan OPcache untuk CI4 di PHP 8.4+
+      PHP_MAJOR="$(echo ${PHP_VERSION} | cut -d. -f1)"
+      PHP_MINOR="$(echo ${PHP_VERSION} | cut -d. -f2)"
+      if [ "${PHP_MAJOR}" -gt 8 ] || { [ "${PHP_MAJOR}" = "8" ] && [ "${PHP_MINOR}" -ge 4 ]; }; then
+        POOL_CONF="/etc/php/${PHP_VERSION}/fpm/pool.d/mycp-${DOMAIN}.conf"
+        if [ -f "${POOL_CONF}" ] && ! grep -q 'opcache.enable' "${POOL_CONF}"; then
+          echo "php_admin_flag[opcache.enable] = off" >> "${POOL_CONF}"
+          systemctl reload "php${PHP_VERSION}-fpm" 2>/dev/null || true
+          log "Auto-fix: OPcache disabled untuk PHP 8.4+ bug (CI4)"
+        fi
+      fi
+      ;;
+    laravel)
+      if [ -f "${ROOT_DIR}/.env" ]; then
+        # Pastikan storage writable
+        chmod -R 775 "${ROOT_DIR}/storage" "${ROOT_DIR}/bootstrap/cache" 2>/dev/null || true
+        chown -R "${USERNAME}:www-data" "${ROOT_DIR}/storage" "${ROOT_DIR}/bootstrap/cache" 2>/dev/null || true
+      fi ;;
+  esac
+fi
+
+# 2. Verifikasi FPM socket
+POOL_SOCKET="/run/php-fpm/mycp-${DOMAIN}.sock"
+if [ ! -S "${POOL_SOCKET}" ]; then
+  log "WARNING: FPM socket ${POOL_SOCKET} belum ada, reload FPM..."
+  FPM_MASTER_PID="$(systemctl show -p MainPID "php${PHP_VERSION}-fpm" 2>/dev/null | sed 's/MainPID=//')"
+  if [ -z "${FPM_MASTER_PID}" ] || [ "${FPM_MASTER_PID}" = "0" ]; then
+    FPM_MASTER_PID="$(ps aux | grep "php-fpm: master.*/etc/php/${PHP_VERSION}/fpm/" | grep -v grep | awk '{print $2}' | head -1)"
+  fi
+  if [ -n "${FPM_MASTER_PID}" ] && [ "${FPM_MASTER_PID}" != "0" ]; then
+    kill -USR2 "${FPM_MASTER_PID}" 2>/dev/null || true
+    sleep 2
+  fi
+  if [ ! -S "${POOL_SOCKET}" ]; then
+    rm -f "${POOL_SOCKET}" "/run/php/php${PHP_VERSION}-fpm.sock" 2>/dev/null || true
+    systemctl restart "php${PHP_VERSION}-fpm" 2>/dev/null || true
+    sleep 2
+  fi
+fi
+
+# 3. Verifikasi nginx socket
+VHOST_FILE="/etc/nginx/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}"
+if [ -f "${VHOST_FILE}" ]; then
+  CURRENT_SOCKET="$(grep 'fastcgi_pass' "${VHOST_FILE}" 2>/dev/null | grep -oP 'unix:\K[^;]+' 2>/dev/null || true)"
+  if [ -n "${CURRENT_SOCKET}" ] && [ "${CURRENT_SOCKET}" != "${POOL_SOCKET}" ] && [ -S "${POOL_SOCKET}" ]; then
+    sed -i "s|fastcgi_pass unix:${CURRENT_SOCKET};|fastcgi_pass unix:${POOL_SOCKET};|" "${VHOST_FILE}" 2>/dev/null || true
+    nginx -t 2>/dev/null && systemctl reload nginx 2>/dev/null || true
+    log "Auto-fix: nginx socket diperbaiki ke ${POOL_SOCKET}"
+  fi
+fi
+
+# 4. Test HTTP response (max 3 kali percobaan)
+for attempt in 1 2 3; do
+  HTTP_CODE="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: ${DOMAIN}" http://127.0.0.1 2>/dev/null || echo '000')"
+  if [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "301" ] || [ "${HTTP_CODE}" = "302" ]; then
+    log "Website ${DOMAIN} berfungsi (HTTP ${HTTP_CODE})"
+    break
+  fi
+  if [ "${attempt}" -lt 3 ]; then
+    log "HTTP ${HTTP_CODE}, mencoba lagi dalam 3 detik..."
+    sleep 3
+  fi
+done
+
 log "Website dibuat: ${DOMAIN}"

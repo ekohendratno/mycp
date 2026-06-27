@@ -1,5 +1,4 @@
 <%- include('partials/header', { title: 'Dashboard - MyControlPanel', activeNav: 'dashboard' }) %>
-<link rel="stylesheet" href="/assets/vendor/xterm/xterm.css">
 
       <header class="topbar">
         <div>
@@ -102,15 +101,4 @@
         </article>
       </section>
 
-<%
-  const modals = `<div class="modal-backdrop" id="cliModal" aria-hidden="true">
-    <div class="modal cli-root" role="dialog" aria-modal="true" aria-labelledby="cliModalTitle">
-      <div class="cli-header">
-        <span class="cli-title"><i class="fa-solid fa-terminal"></i> Terminal</span>
-        <button class="icon-btn" type="button" id="closeCli" title="Close"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div id="terminal-container"></div>
-    </div>
-  </div>`;
-%>
-<%- include('partials/footer', { modals, extraScripts: '<script src="/assets/vendor/xterm/xterm.js"></script><script src="/assets/vendor/xterm/addon-fit.js"></script><script src="/assets/js/dashboard.js"></script>' }) %>
+<%- include('partials/footer', { extraScripts: '<script src="/assets/js/dashboard.js"></script>' }) %>

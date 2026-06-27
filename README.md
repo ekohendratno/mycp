@@ -19,9 +19,9 @@ CentOS / RHEL / AlmaLinux / Rocky, Fedora, Arch.
 |:---:|:---:|:---:|
 | ![Dashboard](screenshot/dashboard.png) | ![Settings](screenshot/detail_setting.png) | ![File Manager](screenshot/detail_filemanager.png) |
 
-| File Editor | Website Preview |
-|:---:|:---:|
-| ![Editor](screenshot/detail_filemanager_edit.png) | ![Preview](screenshot/website.png) |
+| File Editor | Website Preview | Terminal |
+|:---:|:---:|:---:|
+| ![Editor](screenshot/detail_filemanager_edit.png) | ![Preview](screenshot/website.png) | ![Terminal](screenshot/dashboard_terminal.png) |
 
 ---
 

@@ -19,15 +19,20 @@ function startServer(port) {
     console.log(`MyControlPanel running at http://127.0.0.1:${port}/login`);
     const wss = new WebSocketServer({ noServer: true });
     server.on("upgrade", (req, socket, head) => {
-      const url = req.url || "";
-      if (!url.startsWith("/ws/terminal")) {
-        socket.destroy();
-        return;
-      }
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        const shell = pty.spawn("/bin/bash", [], {
-          name: "xterm-256color", cols: 80, rows: 24, cwd: "/home/srv/cp", env: process.env,
-        });
+    const url = req.url || "";
+    if (!url.startsWith("/ws/terminal")) {
+      socket.destroy();
+      return;
+    }
+    var cwd = "/home/srv/cp";
+    try {
+      var parsed = new URL(url, "http://localhost");
+      if (parsed.searchParams.get("cwd")) cwd = parsed.searchParams.get("cwd");
+    } catch (e) {}
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      const shell = pty.spawn("/bin/bash", [], {
+        name: "xterm-256color", cols: 80, rows: 24, cwd: cwd, env: process.env,
+      });
         ws.on("message", (data) => {
           try {
             const msg = JSON.parse(data.toString());

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminal - MyControlPanel</title>
+<link rel="stylesheet" href="/assets/vendor/xterm/xterm.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0c0c0c; overflow: hidden; height: 100vh; }
+  #terminal-container { height: 100vh; }
+</style>
+</head>
+<body>
+  <div id="terminal-container"></div>
+  <script src="/assets/vendor/xterm/xterm.js"></script>
+  <script src="/assets/vendor/xterm/addon-fit.js"></script>
+  <script>
+    var cwd = "<%- cwd %>";
+    var FA = window.FitAddon && window.FitAddon.FitAddon ? window.FitAddon.FitAddon : window.FitAddon;
+    var fitAddon = new FA();
+    var terminal = new Terminal({
+      cursorBlink: true,
+      cursorStyle: "block",
+      fontSize: 14,
+      fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+      theme: {
+        background: "#0c0c0c", foreground: "#33ff33", cursor: "#33ff33",
+        selectionBackground: "#335533", black: "#0c0c0c", red: "#cc4444",
+        green: "#33ff33", yellow: "#cccc33", blue: "#3366ff",
+        magenta: "#cc44cc", cyan: "#33cccc", white: "#cccccc",
+      },
+      allowTransparency: true,
+    });
+    terminal.loadAddon(fitAddon);
+    terminal.open(document.getElementById("terminal-container"));
+    fitAddon.fit();
+    window.addEventListener("resize", function () { fitAddon.fit(); });
+    var ws = new WebSocket(
+      (location.protocol === "https:" ? "wss://" : "ws://") +
+      location.host +
+      "/ws/terminal?cwd=" + encodeURIComponent(cwd)
+    );
+    ws.onopen = function () { terminal.focus(); };
+    ws.onmessage = function (ev) { terminal.write(ev.data); };
+    ws.onerror = function () { terminal.write("\r\n\x1b[31mWebSocket error\x1b[0m\r\n"); };
+    ws.onclose = function () { terminal.write("\r\n\x1b[33mConnection closed\x1b[0m\r\n"); };
+    terminal.onData(function (data) { ws.send(JSON.stringify({ type: "input", data: data })); });
+    terminal.onResize(function (size) {
+      ws.send(JSON.stringify({ type: "resize", data: { cols: size.cols, rows: size.rows } }));
+      fitAddon.fit();
+    });
+  </script>
+</body>
+</html>
