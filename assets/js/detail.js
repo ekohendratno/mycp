@@ -82,13 +82,18 @@ async function loadDetail() {
     "/preview-proxy/" + encodeURIComponent(site.domain) + "/";
 
   document.querySelector("#settingDomain").value = site.domain;
+  document.querySelector("#settingDomain").disabled = true;
   document.querySelector("#settingRoot").value = site.path;
+  document.querySelector("#settingRoot").disabled = true;
   document.querySelector("#settingUser").value = site.username;
+  document.querySelector("#settingUser").disabled = true;
   // Pakai actualVersion (server reality) - fallback kalau PHP yang diminta belum terinstall
   document.querySelector("#settingRuntime").value =
     site.runtime || "CodeIgniter 4";
+  document.querySelector("#settingRuntime").disabled = true;
   document.querySelector("#settingPhpVersion").value =
     site.actualVersion || site.version || "PHP 8.4";
+  document.querySelector("#settingPhpVersion").disabled = true;
 
   // Tampilkan warning banner jika versi yang diminta user tidak terinstall
   var runtime = site.runtime || "";
@@ -583,6 +588,7 @@ function triggerDownload(path) {
 var editorCM = null;
 var editorVhost = null;
 var editorPhpini = null;
+var editorHtaccess = null;
 
 function initCodeMirror(textareaId, opts) {
   var ta = document.getElementById(textareaId);
@@ -757,6 +763,7 @@ function loadTabContent(tab) {
   if (tab === "dashboard") {
     loadPhpForm();
     loadPhpStatus();
+    loadHtaccess();
     return;
   }
   if (loadedTabs[tab]) return;
@@ -1005,6 +1012,92 @@ async function loadPhpStatus() {
       e.message;
   }
 }
+
+// --- .htaccess ---
+var _htaccessRelPath = ".htaccess";
+
+async function loadHtaccess() {
+  try {
+    if (!site) return;
+    var pathEl = document.querySelector("#htaccessPath");
+    var rawEl = document.querySelector("#htaccessRaw");
+    var actionsEl = document.querySelector("#htaccessActions");
+    if (!pathEl || !rawEl) return;
+    // Init CodeMirror jika belum
+    if (!editorHtaccess) {
+      editorHtaccess = initCodeMirror("htaccessRaw", { height: "350px", mode: "text/plain" });
+      document.getElementById("htaccessRaw")._cm = editorHtaccess;
+    }
+    // Coba root .htaccess dulu, fallback ke public/.htaccess
+    var candidates = [".htaccess", "public/.htaccess"];
+    var data = null;
+    var found = false;
+    for (var i = 0; i < candidates.length; i++) {
+      data = await readFile(domain, candidates[i]);
+      if (data && data.content !== null && data.content !== undefined) {
+        _htaccessRelPath = candidates[i];
+        found = true;
+        break;
+      }
+    }
+    pathEl.textContent = site.path + "/" + _htaccessRelPath;
+    if (found) {
+      editorHtaccess.setValue(data.content);
+      if (actionsEl) actionsEl.style.display = "none";
+    } else {
+      _htaccessRelPath = ".htaccess";
+      editorHtaccess.setValue("");
+      if (actionsEl) actionsEl.style.display = "flex";
+    }
+  } catch (e) {
+    console.error("Failed to load .htaccess:", e);
+  }
+}
+
+document
+  .querySelector("#htaccessSaveBtn")
+  ?.addEventListener("click", async function () {
+    if (!editorHtaccess) return;
+    var content = editorHtaccess.getValue();
+    try {
+      await fetch("/api/sites/" + encodeURIComponent(domain) + "/files/write", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: _htaccessRelPath, content: content }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error("Save gagal");
+        return r.json();
+      });
+      showToast(".htaccess tersimpan");
+      await loadHtaccess();
+    } catch (e) {
+      alert("Gagal menyimpan: " + e.message);
+    }
+  });
+
+document
+  .querySelector("#htaccessReloadBtn")
+  ?.addEventListener("click", loadHtaccess);
+
+document
+  .querySelector("#htaccessCreateBtn")
+  ?.addEventListener("click", async function () {
+    if (!editorHtaccess) return;
+    try {
+      await fetch("/api/sites/" + encodeURIComponent(domain) + "/files/write", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: _htaccessRelPath, content: "" }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error("Create gagal");
+        return r.json();
+      });
+      showToast(".htaccess dibuat");
+      await loadHtaccess();
+    } catch (e) {
+      alert("Gagal membuat: " + e.message);
+    }
+  });
 
 document
   .querySelector("#phpSaveBtn")

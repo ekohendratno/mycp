@@ -337,7 +337,8 @@ install_php_versions() {
     case "${PKG_MANAGER}" in
       apt)
         pkg_install "php${ver}-fpm" "php${ver}-cli" "php${ver}-common" \
-          "php${ver}-mysql" "php${ver}-pgsql" "php${ver}-xml" "php${ver}-mbstring" \
+          "php${ver}-mysql" "php${ver}-pgsql" "php${ver}-sqlite3" \
+          "php${ver}-xml" "php${ver}-mbstring" \
           "php${ver}-curl" "php${ver}-zip" "php${ver}-gd" "php${ver}-bcmath" "php${ver}-intl" 2>/dev/null || \
           warn "Gagal install beberapa ekstensi PHP ${ver}"
         # Redis extension
@@ -530,6 +531,7 @@ copy_panel_files() {
     --exclude ".git" \
     --exclude "install.sh" \
     --exclude "deploy/" \
+    --exclude "data/" \
     "${source_dir}/" "${APP_DIR}/"
 
   log "Install Node.js dependencies"
@@ -539,13 +541,20 @@ copy_panel_files() {
     \. "$NVM_DIR/nvm.sh"
   fi
   npm install --production 2>/dev/null || true
-  npm install ws node-pty multer 2>/dev/null || \
-    warn "Gagal install ws/node-pty/multer; terminal & upload mungkin tidak berfungsi"
+
+  log "Setup .env dan data directory"
+  [ -f "${APP_DIR}/.env" ] || {
+    cp "${APP_DIR}/.env.example" "${APP_DIR}/.env"
+    local secret
+    secret="$(head /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 48 2>/dev/null || echo "mycp-$(date +%s)-$$")"
+    sed -i "s/change-this-to-random-string/${secret}/" "${APP_DIR}/.env"
+  }
+  mkdir -p "${APP_DIR}/data"
 
   chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}" 2>/dev/null || true
   find "${APP_DIR}" -type d -exec chmod 755 {} \; 2>/dev/null
   find "${APP_DIR}" -type f -exec chmod 644 {} \; 2>/dev/null
-  chmod +x "${APP_DIR}/server.js" 2>/dev/null
+  chmod +x "${APP_DIR}/server/server.js" 2>/dev/null
   find "${APP_DIR}/scripts" -type f -name "*.sh" -exec chmod 755 {} \; 2>/dev/null
 
   [ -z "${temp_dir}" ] || rm -rf "${temp_dir}"
@@ -830,7 +839,7 @@ After=network.target
 Type=simple
 User=${APP_USER}
 WorkingDirectory=${APP_DIR}
-ExecStart=${node_bin} ${APP_DIR}/server.js
+ExecStart=${node_bin} ${APP_DIR}/server/server.js
 Restart=on-failure
 RestartSec=5
 Environment=NODE_ENV=production

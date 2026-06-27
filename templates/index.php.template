@@ -2,36 +2,55 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>__DOMAIN__</title>
 <style>
-  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif;
-         background: #0f172a; color: #e2e8f0; margin: 0; padding: 60px 20px;
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+         background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+         color: #334155; margin: 0; padding: 40px 20px;
          display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .card { background: #1e293b; border: 1px solid #334155; border-radius: 14px;
-          padding: 36px 48px; box-shadow: 0 14px 36px rgba(0,0,0,0.35);
-          text-align: center; max-width: 640px; }
-  h1 { margin: 0 0 12px; font-size: 34px; color: #60a5fa; }
-  p.lead { font-size: 16px; color: #cbd5e1; margin: 0 0 24px; }
-  pre { background: #0b1220; border: 1px solid #334155; border-radius: 10px;
-        padding: 16px 20px; text-align: left; font-family: "JetBrains Mono", monospace;
-        font-size: 13px; color: #93c5fd; margin: 0; overflow-x: auto; }
-  small { display: block; margin-top: 20px; color: #64748b; font-size: 12px; }
+  .card { background: #ffffff; border: 1px solid #d1d9e6; border-radius: 20px;
+          padding: 40px 48px; box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+          text-align: center; max-width: 640px; width: 100%; transition: box-shadow 0.2s; }
+  .card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.10); }
+  .logo { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 20px;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          display: inline-flex; align-items: center; justify-content: center;
+          font-size: 28px; font-weight: 700; color: #fff; }
+  h1 { margin: 0 0 8px; font-size: 32px; font-weight: 700; color: #1e293b; }
+  p.lead { font-size: 16px; color: #64748b; margin: 0 0 24px; line-height: 1.6; }
+  p.lead strong { color: #6366f1; font-weight: 600; }
+  pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+        padding: 18px 22px; text-align: left; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 13px; color: #475569; margin: 0; overflow-x: auto; line-height: 1.7; }
+  .info-row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .info-row .label { color: #94a3b8; }
+  .info-row .value { color: #334155; font-weight: 500; }
+  small { display: block; margin-top: 20px; color: #94a3b8; font-size: 12px; }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                background: #22c55e; margin-right: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
   <div class="card">
-    <img src="https://placehold.co/64x64/1e293b/60a5fa?text=CP" alt="Logo" style="border-radius:12px;margin-bottom:16px">
-    <h1>Hello, world!</h1>
+    <div class="logo">CP</div>
+    <h1>Selamat datang!</h1>
     <p class="lead">Website <strong>__DOMAIN__</strong> berhasil dibuat oleh MyControlPanel.</p>
     <pre><?php
-echo "PHP version : " . PHP_VERSION . PHP_EOL;
-echo "PHP SAPI    : " . PHP_SAPI . PHP_EOL;
-echo "Server      : " . ($_SERVER['SERVER_SOFTWARE'] ?? 'unknown') . PHP_EOL;
-echo "Document    : " . ($_SERVER['DOCUMENT_ROOT'] ?? '') . PHP_EOL;
-echo "Runtime     : " . ($_SERVER['SERVER_NAME'] ?? '') . PHP_EOL;
-echo "Time        : " . date('Y-m-d H:i:s T') . PHP_EOL;
+$rows = [
+  ['PHP Version', PHP_VERSION],
+  ['PHP SAPI', PHP_SAPI],
+  ['Server', $_SERVER['SERVER_SOFTWARE'] ?? 'unknown'],
+  ['Document Root', $_SERVER['DOCUMENT_ROOT'] ?? ''],
+  ['Runtime', $_SERVER['SERVER_NAME'] ?? ''],
+  ['Time', date('Y-m-d H:i:s T')],
+];
+foreach ($rows as $r) {
+  echo '<div class="info-row"><span class="label">' . $r[0] . '</span><span class="value">' . $r[1] . '</span></div>';
+}
 ?></pre>
-    <small>Default landing page &mdash; replace dengan aplikasi Anda.</small>
+    <small><span class="status-dot"></span>Default landing page &mdash; ganti dengan aplikasi Anda.</small>
   </div>
 </body>
 </html>

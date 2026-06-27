@@ -122,7 +122,7 @@
         <div class="switch-grid">
           <label class="switch"><input type="checkbox" name="ftp"><span></span>FTP</label>
           <label class="switch"><input type="checkbox" name="databaseCreate"><span></span>Database</label>
-          <label class="switch" id="cloneSourceWrap"><input type="checkbox" name="cloneSource"><span></span>Source Code</label>
+          <label class="switch" id="cloneSourceWrap"><input type="checkbox" name="cloneSource" checked><span></span>Source Code</label>
           <label class="switch"><input type="checkbox" name="www" checked><span></span>WWW</label>
           <label class="switch"><input type="checkbox" name="tunnel"><span></span>Tunnel</label>
         </div>
@@ -142,15 +142,7 @@
         <span class="cli-title"><i class="fa-solid fa-spinner"></i> Membuat Website</span>
       </div>
       <div class="progress-body">
-        <div id="progressSteps" class="progress-steps">
-          <div class="progress-step" data-step="user"><i class="fa-regular fa-circle"></i><span>Membuat user</span></div>
-          <div class="progress-step" data-step="pool"><i class="fa-regular fa-circle"></i><span>Konfigurasi PHP-FPM pool</span></div>
-          <div class="progress-step" data-step="vhost"><i class="fa-regular fa-circle"></i><span>Konfigurasi Nginx vhost</span></div>
-          <div class="progress-step" data-step="database"><i class="fa-regular fa-circle"></i><span>Membuat database</span></div>
-          <div class="progress-step" data-step="ssl"><i class="fa-regular fa-circle"></i><span>Issue SSL certificate</span></div>
-          <div class="progress-step" data-step="ftp"><i class="fa-regular fa-circle"></i><span>Aktifkan FTP</span></div>
-          <div class="progress-step" data-step="done"><i class="fa-regular fa-circle"></i><span>Selesai</span></div>
-        </div>
+        <div id="progressSteps" class="progress-steps"></div>
       </div>
       <div id="progressSuccess" class="progress-success" style="display:none">
         <i class="fa-solid fa-circle-check success-icon"></i>

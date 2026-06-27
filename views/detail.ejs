@@ -48,11 +48,10 @@
             <section class="settings-panel">
               <div class="panel-head">
                 <h3>Domain Settings</h3>
-                <button class="primary-btn compact" type="button" id="domainSaveBtn"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
               </div>
               <div class="form-grid">
-                <label>Domain Name<input id="settingDomain" value="dsmartlampung.com"></label>
-                <label>Root Directory<input id="settingRoot" value="/home/dsmartlampung/htdocs"></label>
+                <label>Domain Name<input id="settingDomain" value="dsmartlampung.com" disabled></label>
+                <label>Root Directory<input id="settingRoot" value="/home/dsmartlampung/htdocs" disabled></label>
               </div>
             </section>
 
@@ -62,7 +61,7 @@
                 <button class="ghost-btn compact" type="button" id="generatePasswordBtn"><i class="fa-solid fa-key"></i><span>Generate Password</span></button>
               </div>
               <div class="form-grid">
-                <label>Username<input id="settingUser" value="dsmartlampung"></label>
+                <label>Username<input id="settingUser" value="dsmartlampung" disabled></label>
                 <label>Password<input type="password" id="settingPassword" value="************"></label>
               </div>
             </section>
@@ -74,7 +73,7 @@
               </div>
               <div id="phpVersionWarning" style="display:none;margin-bottom:12px;padding:10px 14px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:13px;color:#78350f"></div>
               <div class="form-grid" id="runtimeFormGrid">
-                <label>Runtime<select id="settingRuntime">
+                <label>Runtime<select id="settingRuntime" disabled>
                   <option>PHP Native</option>
                   <option>CodeIgniter 3</option>
                   <option>CodeIgniter 4</option>
@@ -177,6 +176,23 @@
                 File: <code id="phpiniPath"></code>
               </small>
               <textarea id="phpiniRaw" spellcheck="false"></textarea>
+            </section>
+
+            <section class="settings-panel" id="htaccessPanel">
+              <div class="panel-head">
+                <h3>.htaccess Rewrite Rules</h3>
+                <div class="inline-actions">
+                  <button class="ghost-btn compact" type="button" id="htaccessReloadBtn"><i class="fa-solid fa-rotate"></i><span>Reload</span></button>
+                  <button class="primary-btn compact" type="button" id="htaccessSaveBtn"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
+                </div>
+              </div>
+              <small style="display:block;color:#6b7280;margin-bottom:8px">
+                File: <code id="htaccessPath"></code>
+              </small>
+              <textarea id="htaccessRaw" spellcheck="false" placeholder=".htaccess tidak ditemukan. Klik Create untuk membuat."></textarea>
+              <div style="margin-top:8px;display:flex;gap:8px" id="htaccessActions">
+                <button class="primary-btn compact" type="button" id="htaccessCreateBtn"><i class="fa-solid fa-plus"></i><span>Create .htaccess</span></button>
+              </div>
             </section>
 
             <section class="settings-panel danger-zone">

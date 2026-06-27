@@ -77,9 +77,19 @@ $cfg['UploadDir'] = '';
 $cfg['SaveDir'] = '';
 CFG
 
+# Detect highest installed PHP-FPM version
+PHP_VERSION=""
+for v in 8.4 8.3 8.2 8.1 8.0 7.4; do
+  if [ -S "/run/php/php${v}-fpm.sock" ]; then
+    PHP_VERSION="${v}"
+    break
+  fi
+done
+[ -z "${PHP_VERSION}" ] && PHP_VERSION="8.4"
+
 # Write phpMyAdmin Nginx proxy on port 8087
-log "=== Nginx phpMyAdmin proxy on port 8087 ==="
-cat > /etc/nginx/sites-available/phpmyadmin <<'NGINX'
+log "=== Nginx phpMyAdmin proxy on port 8087 (PHP ${PHP_VERSION}) ==="
+cat > /etc/nginx/sites-available/phpmyadmin <<NGINX
 server {
     listen 127.0.0.1:8087;
     server_name _;
@@ -96,7 +106,7 @@ server {
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
     }
 
     location ~ /\. {
@@ -109,7 +119,7 @@ ln -sfn /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/phpmyadmi
 
 log "=== Restart services ==="
 nginx -t && nginx -s reload
-service php8.4-fpm restart || true
+service "php${PHP_VERSION}-fpm" restart || true
 
 log "=== Done ==="
 echo ""

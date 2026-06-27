@@ -17,4 +17,8 @@ module.exports = function (app) {
     if (!domain) return res.redirect("/");
     res.redirect("/preview-proxy/" + encodeURIComponent(domain) + "/");
   });
+
+  app.get("/terminal", requireViewAuth, (req, res) => {
+    res.render("terminal", { cwd: req.query.cwd || "/home/srv/cp" });
+  });
 };
