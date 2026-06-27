@@ -57,7 +57,7 @@ fi
 need_cmd nginx
 require_path "${ROOT_DIR}"
 
-if [ "${RUNTIME}" = "laravel" ]; then
+if [ "${RUNTIME}" = "laravel" ] || [ "${RUNTIME}" = "ci4" ]; then
   ROOT_DIR="${ROOT_DIR}/public"
 fi
 
@@ -137,10 +137,7 @@ server {
         fastcgi_param HTTPS "on";
         fastcgi_pass unix:${SOCKET};
 
-        # Tampilkan error PHP di browser (hanya untuk preview/dev)
-        # Untuk production, hapus baris ini atau set development=0
         fastcgi_param PHP_VALUE "display_errors=1\nerror_reporting=E_ALL\nlog_errors=1";
-        fastcgi_param PHP_ADMIN_VALUE "development=1";
     }
 
     if (-f \$request_filename) {

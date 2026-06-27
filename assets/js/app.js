@@ -7,9 +7,9 @@ let sites = [];
 let activeFilter = "all";
 
 const versionsByRuntime = {
-  "PHP Native": ["PHP 8.4", "PHP 8.3", "PHP 8.2", "PHP 7.4"],
-  "CodeIgniter 3": ["PHP 8.4", "PHP 8.3", "PHP 8.2", "PHP 7.4"],
-  "CodeIgniter 4": ["PHP 8.4", "PHP 8.3", "PHP 8.2"],
+  "PHP Native": ["PHP 8.4", "PHP 8.3", "PHP 8.2", "PHP 8.1", "PHP 8.0", "PHP 7.4"],
+  "CodeIgniter 3": ["PHP 7.4", "PHP 8.0", "PHP 8.1", "PHP 8.2", "PHP 8.3", "PHP 8.4"],
+  "CodeIgniter 4": ["PHP 8.4", "PHP 8.3", "PHP 8.2", "PHP 8.1", "PHP 8.0"],
   Laravel: ["Laravel 12", "Laravel 11", "Laravel 10"],
   "Node.js": ["Node.js 22", "Node.js 20", "Node.js 18"],
   "Static HTML": ["Nginx Static"],

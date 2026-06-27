@@ -965,6 +965,22 @@ h3 {
   padding: 0 10px;
 }
 
+.db-tools {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.db-tools .ghost-btn.compact,
+.db-tools .danger-btn.compact {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .danger-zone {
   display: flex;
   align-items: center;

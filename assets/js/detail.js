@@ -130,18 +130,18 @@ async function loadDatabases() {
   } else {
     tbody.innerHTML = dbs
       .map(function (db) {
+        var name = encodeURIComponent(db.dbName);
         return (
-          "<tr><td>" +
-          db.dbName +
-          "</td><td>" +
-          db.dbType +
-          "</td><td>" +
-          db.dbUser +
-          '</td><td><button class="ghost-btn compact" type="button" onclick="window.open(\'/phpmyadmin/index.php?route=/database/structure&db=' +
-          encodeURIComponent(db.dbName) +
-          '\', \'_blank\')" title="Manage">Manage</button> <button class="danger-btn compact" type="button" onclick="deleteDb(' +
-          db.id +
-          ')" title="Hapus database">Hapus</button></td></tr>'
+          "<tr><td>" + db.dbName +
+          "</td><td>" + db.dbType +
+          "</td><td>" + db.dbUser +
+          '</td><td class="db-tools">' +
+          '<button class="ghost-btn compact" type="button" onclick="window.open(\'/phpmyadmin/index.php?route=/database/structure&db=' + name + '\', \'_blank\')" title="phpMyAdmin"><i class="fa-solid fa-database"></i></button> ' +
+          '<button class="ghost-btn compact" type="button" onclick="alert(\'pgAdmin belum terinstall\')" title="pgAdmin"><i class="fa-solid fa-elephant"></i></button> ' +
+          '<button class="ghost-btn compact" type="button" onclick="alert(\'Fitur Export belum tersedia\')" title="Export"><i class="fa-solid fa-download"></i></button> ' +
+          '<button class="ghost-btn compact" type="button" onclick="alert(\'Fitur Import belum tersedia\')" title="Import"><i class="fa-solid fa-upload"></i></button> ' +
+          '<button class="danger-btn compact" type="button" onclick="deleteDb(' + db.id + ')" title="Hapus database"><i class="fa-solid fa-trash"></i></button>' +
+          "</td></tr>"
         );
       })
       .join("");
@@ -824,9 +824,9 @@ function readPhpSettingsForm() {
 }
 
 const versionsByRuntime = {
-  "PHP Native": ["PHP 8.4", "PHP 8.3", "PHP 8.2", "PHP 7.4"],
-  "CodeIgniter 3": ["PHP 7.4", "PHP 8.0", "PHP 8.1"],
-  "CodeIgniter 4": ["PHP 8.4", "PHP 8.3", "PHP 8.2"],
+  "PHP Native": ["PHP 8.4", "PHP 8.3", "PHP 8.2", "PHP 8.1", "PHP 8.0", "PHP 7.4"],
+  "CodeIgniter 3": ["PHP 7.4", "PHP 8.0", "PHP 8.1", "PHP 8.2", "PHP 8.3", "PHP 8.4"],
+  "CodeIgniter 4": ["PHP 8.4", "PHP 8.3", "PHP 8.2", "PHP 8.1", "PHP 8.0"],
   Laravel: ["Laravel 12", "Laravel 11", "Laravel 10"],
   "Node.js": ["Node.js 22", "Node.js 20", "Node.js 18"],
   "Static HTML": ["Nginx Static"],

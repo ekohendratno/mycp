@@ -2,7 +2,7 @@
 
 Project MyControlPanel berjalan di berbagai distro Linux via `install.sh`.
 
-## Changelog Perbaikan Sesi Ini
+## Changelog
 
 | Area                           | Perubahan                                                                                       |
 | ------------------------------ | ----------------------------------------------------------------------------------------------- |
@@ -14,7 +14,7 @@ Project MyControlPanel berjalan di berbagai distro Linux via `install.sh`.
 | `scripts/phpini-save.sh`       | PHP-FPM pool isolation penuh: `open_basedir`, `disable_functions`, memory limit, per-site log   |
 | `scripts/lib/common.sh`        | Tambah `warn()` function                                                                        |
 | `scripts/exec.js`              | `getInstalledPhpVersions()` + `resolveActualPhpVersion()` untuk fallback detection              |
-| `server.js`                    | API `GET /api/sites/:domain` return `requestedVersion`, `actualVersion`, `versionMismatch`      |
+| `server/` (modular)            | Monolitik `server.js` dipecah ke `server/routes/*.js` (16 file rute)                            |
 | `assets/js/detail.js`          | Tampilkan warning banner jika versi yang diminta tidak tersedia                                 |
 | `views/detail.ejs`             | Tambah elemen `#phpVersionWarning` + dropdown Runtime/PHP Version sinkron dengan modal          |
 | `assets/js/app.js`             | `updateVersionOptions()` auto-select versi sesuai runtime                                       |
@@ -34,7 +34,7 @@ Project MyControlPanel berjalan di berbagai distro Linux via `install.sh`.
 | Komponen      | Windows              | WSL / Linux                                                                                                          |
 | ------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Source code   | `C:\laragon\www\cp\` | `/home/srv/cp/` atau `/opt/mycontrolpanel/`                                                                          |
-| Node server   | -                    | `/opt/mycontrolpanel/server.js` (port 8089)                                                                          |
+| Node server   | -                    | `/opt/mycontrolpanel/server/server.js` (port 8089)                                                                   |
 | Bash scripts  | `scripts/`           | `/opt/mycontrolpanel/scripts/`                                                                                       |
 | Site metadata | -                    | `/etc/mycontrolpanel/sites/{domain}.env`                                                                             |
 | PHP-FPM pool  | -                    | `/etc/php/{ver}/fpm/pool.d/mycp-{domain}.conf`                                                                       |
@@ -69,13 +69,13 @@ sudo bash /home/srv/cp/install.sh
 | Komponen      | Windows              | WSL                                                |
 | ------------- | -------------------- | -------------------------------------------------- |
 | Source code   | `C:\laragon\www\cp\` | `/home/srv/cp/`                                    |
-| Node server   | -                    | `/home/srv/cp/server.js` (port 8089)               |
+| Node server   | -                    | `/home/srv/cp/server/server.js` (port 8089)           |
 | Bash scripts  | `scripts/`           | `/home/srv/cp/scripts/`                            |
 | Site metadata | -                    | `/etc/mycontrolpanel/sites/{domain}.env`           |
 | PHP-FPM pool  | -                    | `/etc/php/8.4/fpm/pool.d/mycp-{domain}.conf`       |
 | Nginx vhost   | -                    | `/etc/nginx/sites-available/mycp-{domain}`         |
 | Server log    | -                    | `/tmp/cp-server.log`                               |
-| Server PID    | -                    | `1879228` (cek dengan `pgrep -f 'node server.js'`) |
+| Server PID    | -                    | `1879228` (cek dengan `pgrep -f 'node server/server'`) |
 
 ## Cara Sync Source → WSL
 
@@ -86,14 +86,14 @@ wsl -e bash -lc "rsync -av --delete --exclude=node_modules --exclude=data /mnt/c
 Atau per-file:
 
 ```bash
-wsl -e rsync -av /mnt/c/laragon/www/cp/server.js /home/srv/cp/server.js
+wsl -e rsync -av /mnt/c/laragon/www/cp/server/ /home/srv/cp/server/
 ```
 
 ## Cara Start/Restart Server Node
 
 ```bash
 # Kill server lama
-wsl -e bash -lc "pkill -9 -f 'node server.js'"
+wsl -e bash -lc "pkill -9 -f 'node server/server'"
 
 # Start server baru (background, persistent)
 wsl -e bash -lc "cd /home/srv/cp && setsid nohup npm start > /tmp/cp-server.log 2>&1 < /dev/null &"
@@ -128,7 +128,7 @@ Login default: `admin` / `admin123`.
 System WSL hanya punya `/etc/php/8.4/fpm/pool.d`. Semua reference ke `8.3`
 diubah jadi `8.4`:
 
-- **`server.js` line 159**: `version: version || "PHP 8.4"`
+- **`server/app.js`** / `server/routes/sites.js`: `version: version || "PHP 8.4"`
 - **`scripts/site-create.sh` line 12**: `PHP_VERSION="8.4"`
 
 ### 2. Auto-create PHP-FPM pool saat website dibuat
