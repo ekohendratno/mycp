@@ -10,7 +10,7 @@ const config = require("../server/config");
 // __dirname may resolve to /mnt/c/... when server starts from Windows volume.
 let SCRIPTS_DIR = __dirname;
 if (process.platform === "linux") {
-  const candidate = process.env.SCRIPTS_DIR || config.SCRIPTS_DIR || "/home/srv/cp/scripts";
+  const candidate = process.env.SCRIPTS_DIR || config.SCRIPTS_DIR || "/home/srv/mycp/scripts";
   if (fs.existsSync(candidate)) SCRIPTS_DIR = candidate;
 }
 const isLinux = process.platform === "linux";
@@ -107,6 +107,7 @@ function mapLaravelVersion(version) {
 function mapDatabaseType(dbType) {
   const map = {
     MySQL: "mysql",
+    MariaDB: "mariadb",
     PostgreSQL: "postgresql",
     "Tanpa Database": "none",
   };

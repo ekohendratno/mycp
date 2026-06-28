@@ -97,7 +97,7 @@ detect_environment() {
     elif [ -f "$(pwd)/server/server.js" ]; then
       APP_DIR="$(pwd)"
     else
-      APP_DIR="/home/${APP_USER}/cp"
+      APP_DIR="/home/${APP_USER}/mycp"
     fi
   fi
 
@@ -431,8 +431,14 @@ install_composer() {
 # NODE.JS INSTALL VIA NVM
 # ============================================================
 install_nodejs() {
+  local node_exists=false
   if command -v node >/dev/null 2>&1 && [ "$(node --version | cut -d. -f1 | tr -d v)" -ge 18 ]; then
     log "Node.js $(node --version) sudah tersedia"
+    node_exists=true
+  fi
+
+  if [ "$node_exists" = true ]; then
+    install_pm2
     return
   fi
 
@@ -456,15 +462,7 @@ install_nodejs() {
     echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.bashrc
   fi
 
-  # Install PM2 global
-  log "Install PM2 global"
-  npm install -g pm2 2>/dev/null || warn "Gagal install PM2"
-  # Pastikan symlink PM2
-  local pm2_bin
-  pm2_bin="$(which pm2 2>/dev/null || echo "")"
-  if [ -n "${pm2_bin}" ]; then
-    ln -sf "${pm2_bin}" /usr/local/bin/pm2 2>/dev/null || true
-  fi
+  install_pm2
 
   # Install NVM untuk APP_USER
   local user_home="/home/${APP_USER}"
@@ -484,6 +482,24 @@ BASHRC
 # ============================================================
 # PACKAGES PER DISTRO
 # ============================================================
+install_pm2() {
+  log "Install PM2 global"
+  if command -v pm2 >/dev/null 2>&1; then
+    log "PM2 sudah terinstall: $(pm2 --version 2>/dev/null || echo 'unknown')"
+    return
+  fi
+  if [ -s /root/.nvm/nvm.sh ]; then
+    export NVM_DIR="/root/.nvm"
+    \. "$NVM_DIR/nvm.sh"
+  fi
+  npm install -g pm2 2>/dev/null || warn "Gagal install PM2"
+  local pm2_bin
+  pm2_bin="$(which pm2 2>/dev/null || echo "")"
+  if [ -n "${pm2_bin}" ]; then
+    ln -sf "${pm2_bin}" /usr/local/bin/pm2 2>/dev/null || true
+  fi
+}
+
 install_packages() {
   log "Update package index"
   pkg_update

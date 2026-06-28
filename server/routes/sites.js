@@ -34,6 +34,14 @@ module.exports = function (app) {
         ssl, ftp, cloneSource, path: root, password,
       });
       progress.log = result.stdout || "";
+      if (dbType && dbType !== "None" && dbType.toLowerCase() !== "none") {
+        const dbName = `${username}_db`;
+        const dbUser = `${username}_dbu`;
+        db.createDatabase(domain, {
+          dbName, dbUser, dbType,
+          password: password || `${domain}Pass1!`,
+        });
+      }
     } catch (e) {
       progress.log = (e.stderr || e.message || "Script failed");
       console.warn("[scripts] site-create error:", e.message);
