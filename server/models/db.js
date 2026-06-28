@@ -84,6 +84,14 @@ function getUser(username) {
   return data.users.find((u) => u.username === username) || null;
 }
 
+function updateUserPassword(username, newPassword) {
+  const user = data.users.find((u) => u.username === username);
+  if (!user) return false;
+  user.password = bcrypt.hashSync(newPassword, 10);
+  save();
+  return true;
+}
+
 function getSites() {
   return data.sites.map((s) => ({ ...s }));
 }
@@ -202,7 +210,7 @@ function getDashboardStats() {
 }
 
 module.exports = {
-  verifyUser, getUser,
+  verifyUser, getUser, updateUserPassword,
   getSites, getSite, createSite, updateSite, deleteSite,
   getDatabases, getDatabase, createDatabase, deleteDatabase,
   getCronJobs, createCronJob, deleteCronJob,

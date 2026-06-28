@@ -26,6 +26,13 @@ rm -f "$(site_file "${DOMAIN}")"
 rm -f "${MYCP_PHP_CONFIG_DIR}"/*/fpm/pool.d/mycp-${DOMAIN}.conf
 reload_nginx
 
+# Hapus database MySQL/PostgreSQL jika ada
+if [ -n "${DB_TYPE:-}" ] && [ "${DB_TYPE}" != "none" ]; then
+  DB_NAME="${USERNAME}_db"
+  DB_USER="${USERNAME}_dbu"
+  bash "${SCRIPT_DIR}/database-drop.sh" --type "${DB_TYPE}" --database "${DB_NAME}" --user "${DB_USER}" || true
+fi
+
 if [ "${DELETE_HOME}" = "yes" ] && [ -n "${ROOT_DIR:-}" ] && [[ "${ROOT_DIR}" == "${MYCP_HOME_PREFIX}"/*/htdocs* ]]; then
   rm -rf "${ROOT_DIR}"
 fi
