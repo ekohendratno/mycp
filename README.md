@@ -138,6 +138,39 @@ Login pertama → ganti password di **Settings** setelah login.
 
 ---
 
+## Update Panel
+
+Update instalasi MyCP yang sudah ada ke versi terbaru:
+
+### Via Script (Cepat)
+
+```bash
+curl -fsSL https://s.id/mycontrolpanel-update -o update.sh
+chmod +x update.sh
+sudo bash update.sh
+```
+
+Atau lewat URL panjang:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ekohendratno/mycp/refs/heads/main/deploy/update.sh -o update.sh
+chmod +x update.sh
+sudo bash update.sh
+```
+
+Script akan:
+- Auto-detect lokasi instalasi (`/home/srv/mycp`, `/home/srv/cp`, `/opt/mycontrolpanel`, dll)
+- Download versi terbaru dari GitHub
+- Rsync file (menjaga `node_modules` dan `data`)
+- Install dependencies + rebuild native module
+- Restart service panel
+
+### Via Web UI
+
+Dari dashboard panel, klik dropdown **admin → Update Panel**. Proses update berjalan otomatis dengan log real-time.
+
+---
+
 ## Cara Pakai
 
 ### Buat Website Baru
