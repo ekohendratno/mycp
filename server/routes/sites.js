@@ -1,5 +1,7 @@
+const path = require("path");
 const db = require("../models/db");
 const exec = require("../../scripts/exec");
+const config = require("../config");
 const { requireAuth } = require("../middleware/auth");
 
 module.exports = function (app) {
@@ -19,7 +21,7 @@ module.exports = function (app) {
       return res.status(409).json({ error: "Domain sudah terdaftar" });
     const dbType = database || "MySQL";
     const dbPort = port || "80";
-    const root = rootPath || `/home/${username}/htdocs`;
+    const root = rootPath || `${config.MYCP_HOME_PREFIX}/${username}/htdocs`;
     const site = db.createSite({
       domain, username, runtime: runtime || "CodeIgniter 4",
       version: version || "PHP 8.4", database: dbType, port: dbPort,

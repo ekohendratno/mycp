@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SRC="/mnt/c/laragon/www/mycp"
-DST="/home/srv/cp"
+SRC="${SRC:-/mnt/c/laragon/www/mycp}"
+DST="${DST:-/opt/mycontrolpanel}"
 
 echo "Deploying scripts..."
 cp "$SRC/scripts/vhost-save.sh" "$DST/scripts/vhost-save.sh"
@@ -30,6 +30,7 @@ ln -sfn "$DST/node_modules/xterm" "$DST/assets/vendor/xterm"
 ln -sfn "$DST/node_modules/@xterm" "$DST/assets/vendor/@xterm"
 
 echo "Fix permissions..."
-chown -R srv:srv "$DST/scripts" "$DST/assets" "$DST/views" "$DST/server"
+CHOWN_USER="${CHOWN_USER:-srv:srv}"
+chown -R "$CHOWN_USER" "$DST/scripts" "$DST/assets" "$DST/views" "$DST/server"
 
 echo "Deploy selesai"

@@ -16,7 +16,7 @@ done
 require_root
 require_domain "${DOMAIN}"
 
-CERT_DIR="/etc/nginx/ssl/${DOMAIN}"
+CERT_DIR="${MYCP_SSL_DIR}/${DOMAIN}"
 mkdir -p "${CERT_DIR}"
 
 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \

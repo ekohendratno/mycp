@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const config = require("../config");
 const db = require("../models/db");
 const { requireAuth } = require("../middleware/auth");
 
@@ -53,7 +54,7 @@ module.exports = function (app) {
       var site = db.getSite(req.params.domain);
       if (!site) return res.status(404).json({ error: "Site not found" });
       var { execSync } = require("child_process");
-      var root = site.path || "/home/" + site.username + "/htdocs";
+      var root = site.path || config.MYCP_HOME_PREFIX + "/" + site.username + "/htdocs";
       var port = site.port || "3000";
       var env = getPm2Env();
       var out = execSync("pm2 describe " + req.params.domain + " 2>/dev/null || true", { encoding: "utf8", env: env });

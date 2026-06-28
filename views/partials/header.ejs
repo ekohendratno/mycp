@@ -10,6 +10,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/monokai.min.css">
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="icon" href="/assets/img/logo.png" type="image/png">
+  <% if (typeof mycpConfig !== 'undefined') { %>
+  <script>window.MyCP = <%- JSON.stringify(mycpConfig) %>;</script>
+  <% } %>
 </head>
 <body>
   <div class="app-shell no-sidebar">

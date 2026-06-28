@@ -24,7 +24,7 @@ function startServer(port) {
       socket.destroy();
       return;
     }
-    var cwd = "/home/srv/cp";
+    var cwd = config.APP_DIR;
     try {
       var parsed = new URL(url, "http://localhost");
       if (parsed.searchParams.get("cwd")) cwd = parsed.searchParams.get("cwd");

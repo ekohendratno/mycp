@@ -22,8 +22,8 @@ require_domain "${DOMAIN}"
 [[ "${LINES}" =~ ^[0-9]+$ ]] || fail "--lines harus angka"
 
 case "${TYPE}" in
-  access) LOG_FILE="/var/log/nginx/${DOMAIN}.access.log" ;;
-  error) LOG_FILE="/var/log/nginx/${DOMAIN}.error.log" ;;
+  access) LOG_FILE="${MYCP_LOG_DIR}/${DOMAIN}.access.log" ;;
+  error) LOG_FILE="${MYCP_LOG_DIR}/${DOMAIN}.error.log" ;;
   *) fail "Type log tidak didukung: ${TYPE}" ;;
 esac
 

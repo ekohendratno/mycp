@@ -52,7 +52,8 @@
 })().catch(console.error);
 
 document.querySelector("#openCli")?.addEventListener("click", function () {
-  window.open("/terminal?cwd=/home/srv/cp", "_blank", "width=900,height=500");
+  var appDir = (window.MyCP && window.MyCP.APP_DIR) || "/opt/mycontrolpanel";
+  window.open("/terminal?cwd=" + encodeURIComponent(appDir), "_blank", "width=900,height=500");
 });
 
 document.querySelector("#refreshDashboard")?.addEventListener("click", function () {

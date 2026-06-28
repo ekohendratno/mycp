@@ -11,7 +11,7 @@ if ! command -v mariadbd >/dev/null 2>&1 && ! command -v mysqld >/dev/null 2>&1;
   DEBIAN_FRONTEND=noninteractive apt-get install -y mariadb-server 2>&1 | tail -3
 fi
 
-if [ -S /run/mysqld/mysqld.sock ]; then
+if [ -S "${MYCP_MYSQL_SOCK}" ]; then
   log "MariaDB already running"
 else
   if command -v systemctl >/dev/null 2>&1; then
@@ -21,9 +21,9 @@ else
   fi
   sleep 2
   # Try direct launch if service failed
-  if [ ! -S /run/mysqld/mysqld.sock ]; then
-    mkdir -p /run/mysqld
-    chown mysql:mysql /run/mysqld
+  if [ ! -S "${MYCP_MYSQL_SOCK}" ]; then
+    mkdir -p "${MYCP_MYSQL_RUN_DIR}"
+    chown mysql:mysql "${MYCP_MYSQL_RUN_DIR}"
     mariadbd --user=mysql --datadir=/var/lib/mysql &
     sleep 3
   fi
@@ -40,13 +40,14 @@ mariadb -e "CREATE USER IF NOT EXISTS 'phpmyadmin'@'localhost' IDENTIFIED BY 'ph
 mariadb -e "GRANT ALL PRIVILEGES ON phpmyadmin.* TO 'phpmyadmin'@'localhost';" 2>/dev/null || true
 mariadb -e "FLUSH PRIVILEGES;" 2>/dev/null || true
 mariadb -e "CREATE DATABASE IF NOT EXISTS phpmyadmin;" 2>/dev/null || true
-if [ -f /usr/share/phpmyadmin/sql/create_tables.sql ]; then
-  mariadb phpmyadmin < /usr/share/phpmyadmin/sql/create_tables.sql 2>/dev/null || true
+if [ -f "${MYCP_PMA_ROOT}/sql/create_tables.sql" ]; then
+  mariadb phpmyadmin < "${MYCP_PMA_ROOT}/sql/create_tables.sql" 2>/dev/null || true
 fi
 
 # Write phpmyadmin config if missing
-if [ ! -f /etc/phpmyadmin/config-db.php ]; then
-  cat > /etc/phpmyadmin/config-db.php <<'EOF'
+if [ ! -f "${MYCP_PMA_CONFIG_DIR}/config-db.php" ]; then
+  mkdir -p "${MYCP_PMA_CONFIG_DIR}"
+  cat > "${MYCP_PMA_CONFIG_DIR}/config-db.php" <<'EOF'
 <?php
 $dbuser='phpmyadmin';
 $dbpass='phpmyadmin';
@@ -59,28 +60,28 @@ EOF
 fi
 
 # Write phpMyAdmin config with auto-login as root
-PMA_CONFIG=/etc/phpmyadmin/config.inc.php
+PMA_CONFIG="${MYCP_PMA_CONFIG_DIR}/config.inc.php"
 cat > "$PMA_CONFIG" <<'CFG'
 <?php
-require_once('/etc/phpmyadmin/config-db.php');
-$cfg['blowfish_secret'] = 'mycp_secret_key_2026_dev';
-$i = 0;
-$i++;
-$cfg['Servers'][$i]['auth_type'] = 'config';
-$cfg['Servers'][$i]['user'] = 'root';
-$cfg['Servers'][$i]['password'] = '';
-$cfg['Servers'][$i]['host'] = 'localhost';
-$cfg['Servers'][$i]['connect_type'] = 'tcp';
-$cfg['Servers'][$i]['compress'] = false;
-$cfg['Servers'][$i]['AllowNoPassword'] = true;
-$cfg['UploadDir'] = '';
-$cfg['SaveDir'] = '';
+require_once('${MYCP_PMA_CONFIG_DIR}/config-db.php');
+\$cfg['blowfish_secret'] = 'mycp_secret_key_2026_dev';
+\$i = 0;
+\$i++;
+\$cfg['Servers'][\$i]['auth_type'] = 'config';
+\$cfg['Servers'][\$i]['user'] = 'root';
+\$cfg['Servers'][\$i]['password'] = '';
+\$cfg['Servers'][\$i]['host'] = 'localhost';
+\$cfg['Servers'][\$i]['connect_type'] = 'tcp';
+\$cfg['Servers'][\$i]['compress'] = false;
+\$cfg['Servers'][\$i]['AllowNoPassword'] = true;
+\$cfg['UploadDir'] = '';
+\$cfg['SaveDir'] = '';
 CFG
 
 # Detect highest installed PHP-FPM version
 PHP_VERSION=""
 for v in 8.4 8.3 8.2 8.1 8.0 7.4; do
-  if [ -S "/run/php/php${v}-fpm.sock" ]; then
+  if [ -S "${MYCP_PHP_SOCK_DIR}/php${v}-fpm.sock" ]; then
     PHP_VERSION="${v}"
     break
   fi
@@ -89,16 +90,16 @@ done
 
 # Write phpMyAdmin Nginx proxy on port 8087
 log "=== Nginx phpMyAdmin proxy on port 8087 (PHP ${PHP_VERSION}) ==="
-cat > /etc/nginx/sites-available/phpmyadmin <<NGINX
+cat > "${MYCP_NGINX_DIR}/sites-available/phpmyadmin" <<NGINX
 server {
     listen 127.0.0.1:8087;
     server_name _;
 
-    root /usr/share/phpmyadmin;
+    root ${MYCP_PMA_ROOT};
     index index.php index.html;
 
-    access_log /var/log/nginx/phpmyadmin.access.log;
-    error_log /var/log/nginx/phpmyadmin.error.log;
+    access_log ${MYCP_LOG_DIR}/phpmyadmin.access.log;
+    error_log ${MYCP_LOG_DIR}/phpmyadmin.error.log;
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
@@ -106,7 +107,7 @@ server {
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_pass unix:${MYCP_PHP_SOCK_DIR}/php${PHP_VERSION}-fpm.sock;
     }
 
     location ~ /\. {
@@ -115,7 +116,7 @@ server {
 }
 NGINX
 
-ln -sfn /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/phpmyadmin
+ln -sfn "${MYCP_NGINX_DIR}/sites-available/phpmyadmin" "${MYCP_NGINX_DIR}/sites-enabled/phpmyadmin"
 
 log "=== Restart services ==="
 nginx -t && nginx -s reload

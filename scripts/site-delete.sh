@@ -21,12 +21,12 @@ done
 require_root
 load_site "${DOMAIN}"
 
-rm -f "/etc/nginx/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}" "/etc/nginx/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
+rm -f "${MYCP_NGINX_DIR}/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}" "${MYCP_NGINX_DIR}/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
 rm -f "$(site_file "${DOMAIN}")"
-rm -f /etc/php/*/fpm/pool.d/mycp-${DOMAIN}.conf
+rm -f "${MYCP_PHP_CONFIG_DIR}"/*/fpm/pool.d/mycp-${DOMAIN}.conf
 reload_nginx
 
-if [ "${DELETE_HOME}" = "yes" ] && [ -n "${ROOT_DIR:-}" ] && [[ "${ROOT_DIR}" == /home/*/htdocs* ]]; then
+if [ "${DELETE_HOME}" = "yes" ] && [ -n "${ROOT_DIR:-}" ] && [[ "${ROOT_DIR}" == "${MYCP_HOME_PREFIX}"/*/htdocs* ]]; then
   rm -rf "${ROOT_DIR}"
 fi
 
