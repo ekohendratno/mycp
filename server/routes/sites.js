@@ -80,9 +80,15 @@ module.exports = function (app) {
   });
 
   app.delete("/api/sites/:domain", requireAuth, async (req, res) => {
-    if (!db.deleteSite(req.params.domain))
+    const domain = req.params.domain;
+    const dbs = db.getDatabases(domain);
+    await Promise.allSettled(dbs.map((d) =>
+      exec.execDropDatabase(d.dbName, d.dbType, d.dbUser)
+        .catch((e) => console.warn("[scripts] database-drop error:", d.dbName, e.message))
+    ));
+    if (!db.deleteSite(domain))
       return res.status(404).json({ error: "Site tidak ditemukan" });
-    exec.execDeleteSite(req.params.domain, true, true)
+    exec.execDeleteSite(domain, true, true)
       .catch((e) => console.warn("[scripts] site-delete stderr:", e.stderr));
     res.json({ ok: true });
   });

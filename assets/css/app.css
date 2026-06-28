@@ -85,6 +85,96 @@ button {
   color: var(--text);
 }
 
+.user-dropdown {
+  position: relative;
+}
+
+.user-dropdown-toggle {
+  min-height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.user-dropdown-toggle:hover {
+  border-color: var(--blue);
+}
+
+.user-dropdown-toggle .fa-chevron-down {
+  font-size: 10px;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+
+.user-dropdown.open .fa-chevron-down {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: 30;
+  padding: 6px;
+}
+
+.user-dropdown.open .dropdown-menu {
+  display: block;
+}
+
+.dropdown-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dropdown-menu button:hover {
+  background: var(--surface-2);
+}
+
+.dropdown-menu button i {
+  width: 16px;
+  color: var(--muted);
+}
+
+.dropdown-menu hr {
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
+.form-error {
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -1474,10 +1564,19 @@ th {
     width: 100%;
   }
 
-  .auth-actions span,
-  .auth-actions button {
+  .user-dropdown {
     flex: 1;
+  }
+
+  .user-dropdown-toggle {
+    width: 100%;
     justify-content: center;
+  }
+
+  .dropdown-menu {
+    right: auto;
+    left: 0;
+    width: 100%;
   }
 
   .top-nav a {
