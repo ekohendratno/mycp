@@ -107,6 +107,7 @@ function mapLaravelVersion(version) {
 function mapDatabaseType(dbType) {
   const map = {
     MySQL: "mysql",
+    MariaDB: "mariadb",
     PostgreSQL: "postgresql",
     "Tanpa Database": "none",
   };

@@ -233,7 +233,7 @@ form.addEventListener("submit", async (event) => {
     passwordSet: Boolean(String(data.get("password")).trim()),
     runtime,
     version: String(data.get("version")),
-    database: String(data.get("database")),
+    database: data.has("databaseCreate") ? String(data.get("database")) : "None",
     port: String(data.get("port")).trim() || "80",
     ssl: data.get("ssl") || "none",
     ftp: data.has("ftp"),
