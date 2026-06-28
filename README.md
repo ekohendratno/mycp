@@ -50,17 +50,30 @@ CentOS / RHEL / AlmaLinux / Rocky, Fedora, Arch.
 
 ### Prasyarat
 
-- Linux server / VPS / WSL dengan akses `sudo`
+- Linux server / VPS / WSL dengan akses `sudo` atau `root`
 - Koneksi internet untuk download paket
 - Minimal 1 GB RAM, 5 GB disk
 
 ### Quick Install (VPS / Bare Metal)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ekohendratno/mycp/main/install.sh -o install.sh
+curl -fsSL https://s.id/mycontrolpanel -o install.sh
 chmod +x install.sh
 sudo bash install.sh
 ```
+
+Atau lewat URL panjang:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ekohendratno/mycp/refs/heads/main/deploy/install.sh -o install.sh
+chmod +x install.sh
+sudo bash install.sh
+```
+
+Script akan auto-detect environment:
+- **User panel** → terdeteksi dari `SUDO_USER` atau user pemilik direktori
+- **Lokasi instalasi** → `/home/{user}/cp` atau dari `pwd` jika di dalam repo
+- **PHP version** → semua versi yang tersedia di repositori distro
 
 ### Custom Install
 
@@ -74,7 +87,7 @@ sudo INSTALL_MARIADB=no INSTALL_POSTGRES=no bash install.sh
 # Tanpa FTP
 sudo INSTALL_FTP=no bash install.sh
 
-# Custom user & password
+# Custom user & password (jika auto-detect tidak sesuai)
 sudo APP_USER=admin APP_PASSWORD='MyS3cret!' bash install.sh
 ```
 
@@ -84,11 +97,10 @@ sudo APP_USER=admin APP_PASSWORD='MyS3cret!' bash install.sh
 # 1. Buka terminal WSL Ubuntu/Debian
 wsl -e bash
 
-# 2. Sync source code dari Windows ke WSL
-rsync -av --delete --exclude=node_modules --exclude=data /mnt/c/laragon/www/cp/ /home/srv/cp/
-
-# 3. Install dependencies
-sudo bash /home/srv/cp/install.sh
+# 2. Download installer langsung
+curl -fsSL https://s.id/mycontrolpanel -o install.sh
+chmod +x install.sh
+sudo bash install.sh
 ```
 
 ---
@@ -120,7 +132,9 @@ Panel URL LAN   : http://<IP_SERVER>:8089/login
 Login default   : admin / admin123
 ```
 
-Login pertama → ganti password di **Site User** menu setelah create website.
+Panel bisa diakses via **Nginx proxy** di port 80 (tanpa `:8089`) jika DNS sudah mengarah ke server.
+
+Login pertama → ganti password di **Settings** setelah login.
 
 ---
 
@@ -215,7 +229,7 @@ mycp db:create --domain example.com --database example_db --user example_user --
 mycp ftp:create --domain example.com --user ftpuser --password 'FTPp@ss'
 mycp cron:add --domain example.com --schedule "*/5 * * * *" --command "php artisan queue:work"
 mycp restart                # Restart panel + nginx
-mycp path                   # Path install (/opt/mycontrolpanel)
+mycp path                   # Path instalasi panel
 mycp url                    # URL panel
 ```
 
@@ -225,7 +239,7 @@ mycp url                    # URL panel
 
 ### Port 8089 sudah dipakai
 
-Edit `server/config.js` atau ubah environment:
+Ubah environment PORT:
 
 ```bash
 sudo systemctl edit mycp-server
@@ -235,14 +249,21 @@ sudo systemctl edit mycp-server
 sudo systemctl restart mycp-server
 ```
 
+Atau set di `.env`:
+
+```bash
+echo "PORT=9090" >> /opt/mycontrolpanel/.env
+sudo systemctl restart mycp-server
+```
+
 ### PHP-FPM gagal start
 
 ```bash
-# Cek log
+# Cek log (ganti 8.4 dengan versi PHP yang terinstall)
 sudo tail -50 /var/log/php8.4-fpm.log
 sudo tail -50 /var/log/syslog | grep php-fpm
 
-# Test config
+# Test config (ganti 8.4 dengan versi PHP)
 sudo php-fpm8.4 -t
 ```
 
@@ -294,7 +315,7 @@ sudo systemctl restart php7.4-fpm
             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Nginx                                                       │
-│  ├─ :80/mycp-* → reverse proxy ke Node.js :8089             │
+│  ├─ :80 → reverse proxy ke Node.js :8089                    │
 │  └─ :80/site1.com → fastcgi_pass unix:/run/php-fpm/        │
 │                       mycp-site1.com.sock                    │
 └─────────────────────────────────────────────────────────────┘
@@ -330,9 +351,12 @@ sudo systemctl restart php7.4-fpm
 
 | File                           | Tujuan                            |
 | ------------------------------ | --------------------------------- |
-| `install.sh`                   | Installer multi-distro            |
+| `deploy/install.sh`            | Installer multi-distro            |
+| `deploy/start-server.sh`       | Startup script (auto-detect APP_DIR) |
+| `server/config.js`             | Central config (semua path dari env) |
 | `server/app.js` + `server/routes/*` | Backend Express modular (16 route files) |
-| `db.js`                        | JSON-based data store             |
+| `server/models/db.js`          | JSON-based data store             |
+| `scripts/lib/common.sh`        | Library bash (central path vars)  |
 | `scripts/site-create.sh`       | Provisioning website baru         |
 | `scripts/phpini-save.sh`       | PHP-FPM pool config + isolation   |
 | `scripts/vhost-save.sh`        | Generate Nginx vhost              |
@@ -340,10 +364,13 @@ sudo systemctl restart php7.4-fpm
 | `scripts/ftp-create.sh`        | Akun FTP per-site                 |
 | `views/detail.ejs`             | Dashboard detail site             |
 | `views/index.ejs`              | Dashboard list + form tambah site |
+| `views/terminal.ejs`           | WebSocket terminal via xterm.js   |
 | `assets/js/detail.js`          | Frontend detail page logic        |
-| `templates/index.php.template` | Hello World landing page          |
+| `assets/vendor/xterm/`         | xterm.js vendor (terminal)        |
+| `templates/index.php.template` | Hello World landing page (PHP)    |
+| `templates/node-server.js.template` | Hello World landing page (Node.js) |
 
-Lihat **`DEPLOY_NOTES.md`** untuk catatan deployment Windows ↔ WSL.
+Semua path bisa di-override via environment variable (lihat `.env.example`).
 
 ---
 
