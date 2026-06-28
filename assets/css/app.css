@@ -1775,6 +1775,13 @@ th {
   font-size: 12px;
 }
 
+/* --- Generic Dialog --- */
+#genericDialog.modal-backdrop { z-index: 25; }
+#genericDialog .modal { overflow: auto; min-height: 0; }
+#genericDialog .dialog-body { padding: 18px; }
+#genericDialog .cli-root { width: min(440px, 100%); }
+#genericDialog.wide .cli-root { width: min(640px, 100%); }
+
 /* --- Progress Steps --- */
 .progress-steps {
   padding: 24px;

@@ -35,6 +35,9 @@ else
   rm -rf "${TMP_DIR}"
 fi
 
+log "Set script permissions"
+find "${APP_DIR}/scripts" -name '*.sh' -exec chmod +x {} +
+
 log "Install dependencies"
 if [ -s /root/.nvm/nvm.sh ]; then
   export NVM_DIR="/root/.nvm"
@@ -42,5 +45,6 @@ if [ -s /root/.nvm/nvm.sh ]; then
 fi
 cd "${APP_DIR}"
 npm install --production 2>&1 || warn "npm install gagal"
+npm rebuild 2>&1 || warn "npm rebuild gagal"
 
 log "Update selesai, restart service..."

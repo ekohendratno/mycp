@@ -5,8 +5,8 @@ SRC="${SRC:-/mnt/c/laragon/www/mycp}"
 DST="${DST:-/opt/mycontrolpanel}"
 
 echo "Deploying scripts..."
-cp "$SRC/scripts/vhost-save.sh" "$DST/scripts/vhost-save.sh"
-chmod +x "$DST/scripts/vhost-save.sh"
+cp "$SRC/scripts/"*.sh "$DST/scripts/"
+find "$DST/scripts" -name '*.sh' -exec chmod +x {} +
 
 echo "Deploying views..."
 cp -r "$SRC/views/" "$DST/views/"

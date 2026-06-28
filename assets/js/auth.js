@@ -16,34 +16,39 @@ async function checkAuth() {
 }
 
 function toggleDropdown() {
-  const dd = document.querySelector('.user-dropdown');
-  if (dd) dd.classList.toggle('open');
+  document.querySelector('.user-dropdown')?.classList.toggle('open');
 }
 
 function closeDropdown() {
-  const dd = document.querySelector('.user-dropdown');
-  if (dd) dd.classList.remove('open');
+  document.querySelector('.user-dropdown')?.classList.remove('open');
 }
 
-function openPasswordModal() {
+function showDialog(titleHtml, bodyHtml, wide) {
   closeDropdown();
-  const modal = document.getElementById('changePasswordModal');
-  if (modal) {
-    modal.setAttribute('aria-hidden', 'false');
-    modal.classList.add('open');
-    document.getElementById('changePasswordForm')?.reset();
-    const err = document.getElementById('changePasswordError');
-    if (err) { err.style.display = 'none'; err.textContent = ''; }
+  const dialog = document.getElementById('genericDialog');
+  const title = document.getElementById('genericDialogTitle');
+  const body = document.getElementById('genericDialogBody');
+  if (!dialog) return;
+  title.innerHTML = titleHtml;
+  body.innerHTML = bodyHtml;
+  dialog.classList.toggle('wide', !!wide);
+  dialog.setAttribute('aria-hidden', 'false');
+  dialog.classList.add('open');
+  document.getElementById('genericDialogClose').onclick = closeDialog;
+  dialog.querySelector('.modal-backdrop-close')?.addEventListener('click', closeDialog);
+}
+
+function closeDialog() {
+  const dialog = document.getElementById('genericDialog');
+  if (dialog) {
+    dialog.setAttribute('aria-hidden', 'true');
+    dialog.classList.remove('open');
   }
 }
 
-function closePasswordModal() {
-  const modal = document.getElementById('changePasswordModal');
-  if (modal) {
-    modal.setAttribute('aria-hidden', 'true');
-    modal.classList.remove('open');
-  }
-}
+document.getElementById('genericDialog')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeDialog();
+});
 
 function initAuthUi() {
   document.querySelectorAll('[data-logout]').forEach(button => {
@@ -68,79 +73,125 @@ function initAuthUi() {
     }
   });
 
+  // --- Change Password ---
   document.querySelectorAll('[data-open-change-password]').forEach(btn => {
-    btn.addEventListener('click', openPasswordModal);
+    btn.addEventListener('click', () => {
+      showDialog(
+        '<i class="fa-solid fa-key"></i> Change Password',
+        '<div class="dialog-body"><form id="changePasswordForm" style="display:grid;gap:14px">' +
+            '<label>Current Password<input type="password" name="currentPassword" required minlength="1"></label>' +
+            '<label>New Password<input type="password" name="newPassword" required minlength="8"></label>' +
+            '<label>Confirm New Password<input type="password" name="confirmPassword" required minlength="8"></label>' +
+            '<div id="changePasswordError" class="form-error" style="display:none"></div>' +
+            '<div class="modal-actions">' +
+              '<button class="ghost-btn" type="button" onclick="closeDialog()">Cancel</button>' +
+              '<button class="primary-btn" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save</button>' +
+            '</div>' +
+        '</form></div>'
+      );
+
+      document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const currentPassword = data.get('currentPassword');
+        const newPassword = data.get('newPassword');
+        const confirmPassword = data.get('confirmPassword');
+        const errEl = document.getElementById('changePasswordError');
+
+        if (newPassword.length < 8) {
+          errEl.textContent = 'Password baru minimal 8 karakter'; errEl.style.display = 'block';
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          errEl.textContent = 'Konfirmasi password tidak cocok'; errEl.style.display = 'block';
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/me/password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPassword, newPassword }),
+          });
+          const json = await res.json();
+          if (res.ok) {
+            closeDialog();
+            alert('Password berhasil diubah');
+          } else {
+            errEl.textContent = json.error || 'Gagal mengubah password'; errEl.style.display = 'block';
+          }
+        } catch (e) {
+          errEl.textContent = 'Gagal menghubungi server'; errEl.style.display = 'block';
+        }
+      });
+    });
   });
 
+  // --- Update Panel ---
   document.querySelectorAll('[data-update-panel]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      closeDropdown();
-      if (!confirm('Update panel sekarang? Aplikasi akan restart.')) return;
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
+      showDialog(
+        '<i class="fa-solid fa-rotate fa-spin"></i> Update Panel',
+        '<div id="updateSteps" class="progress-steps"></div>' +
+        '<pre id="updateLog" class="progress-log" style="display:none"></pre>' +
+        '<div id="updateSuccess" class="progress-success" style="display:none">' +
+          '<i class="fa-solid fa-circle-check success-icon"></i>' +
+          '<h3>Panel berhasil diupdate!</h3>' +
+          '<p>Halaman akan dimuat ulang...</p>' +
+          '<button class="primary-btn" type="button" onclick="location.reload()"><i class="fa-solid fa-check"></i><span>OK</span></button>' +
+        '</div>',
+        true
+      );
+
+      function addStep(text, status) {
+        const s = document.getElementById('updateSteps');
+        if (!s) return;
+        const div = document.createElement('div');
+        div.className = 'progress-step ' + status;
+        div.innerHTML = '<i class="fa-solid fa-' + (status === 'active' ? 'spinner fa-spin' : status === 'done' ? 'check' : 'xmark') + '"></i> ' + text;
+        s.appendChild(div);
+      }
+
+      addStep('Memulai update...', 'active');
+
       try {
         const res = await fetch('/api/update', { method: 'POST' });
         const json = await res.json();
+        const steps = document.getElementById('updateSteps');
+        const log = document.getElementById('updateLog');
+        const success = document.getElementById('updateSuccess');
+        if (!steps || !log || !success) return;
+
+        steps.innerHTML = '';
+
+        if (res.ok && json.log) {
+          json.log.split('\n').filter(Boolean).forEach(function (line) {
+            const clean = line.replace(/\[mycp\]\s*(WARN|ERROR):?\s*/g, '').replace(/\[mycp\]/g, '').trim();
+            if (clean) addStep(clean, 'done');
+          });
+        }
+
         if (res.ok) {
-          alert('Panel berhasil diupdate!');
-          location.reload();
+          addStep('Update selesai!', 'done');
+          log.textContent = json.log || 'Update selesai';
+          log.style.display = 'block';
+          success.style.display = 'block';
+          document.getElementById('genericDialogTitle').innerHTML = '<i class="fa-solid fa-circle-check" style="color:#16a34a"></i> Update Berhasil';
+          setTimeout(function () { location.reload(); }, 3000);
         } else {
-          alert('Gagal: ' + (json.error || 'Unknown error'));
+          addStep('Gagal: ' + (json.error || 'Unknown error'), 'error');
+          log.textContent = json.error || 'Gagal';
+          log.style.display = 'block';
+          document.getElementById('genericDialogTitle').innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:#dc2626"></i> Update Gagal';
         }
       } catch (e) {
-        alert('Gagal menghubungi server');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Update Panel';
+        addStep('Gagal menghubungi server', 'error');
+        document.getElementById('updateLog').textContent = e.message;
+        document.getElementById('updateLog').style.display = 'block';
+        document.getElementById('genericDialogTitle').innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:#dc2626"></i> Update Gagal';
       }
     });
   });
-
-  document.querySelectorAll('[data-close-change-password]').forEach(btn => {
-    btn.addEventListener('click', closePasswordModal);
-  });
-
-  const form = document.getElementById('changePasswordForm');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = new FormData(form);
-      const currentPassword = data.get('currentPassword');
-      const newPassword = data.get('newPassword');
-      const confirmPassword = data.get('confirmPassword');
-      const errEl = document.getElementById('changePasswordError');
-
-      if (newPassword.length < 8) {
-        errEl.textContent = 'Password baru minimal 8 karakter';
-        errEl.style.display = 'block';
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        errEl.textContent = 'Konfirmasi password tidak cocok';
-        errEl.style.display = 'block';
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/me/password', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentPassword, newPassword }),
-        });
-        const json = await res.json();
-        if (res.ok) {
-          alert('Password berhasil diubah');
-          closePasswordModal();
-        } else {
-          errEl.textContent = json.error || 'Gagal mengubah password';
-          errEl.style.display = 'block';
-        }
-      } catch (e) {
-        errEl.textContent = 'Gagal menghubungi server';
-        errEl.style.display = 'block';
-      }
-    });
-  }
 }
 
 if (document.readyState === 'loading') {
