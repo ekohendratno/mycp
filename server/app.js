@@ -33,5 +33,6 @@ require("./routes/logs")(app);
 require("./routes/services")(app);
 require("./routes/pm2")(app);
 require("./routes/server")(app);
+require("./routes/update")(app);
 
 module.exports = app;

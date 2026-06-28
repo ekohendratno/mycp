@@ -72,6 +72,30 @@ function initAuthUi() {
     btn.addEventListener('click', openPasswordModal);
   });
 
+  document.querySelectorAll('[data-update-panel]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      closeDropdown();
+      if (!confirm('Update panel sekarang? Aplikasi akan restart.')) return;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
+      try {
+        const res = await fetch('/api/update', { method: 'POST' });
+        const json = await res.json();
+        if (res.ok) {
+          alert('Panel berhasil diupdate!');
+          location.reload();
+        } else {
+          alert('Gagal: ' + (json.error || 'Unknown error'));
+        }
+      } catch (e) {
+        alert('Gagal menghubungi server');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Update Panel';
+      }
+    });
+  });
+
   document.querySelectorAll('[data-close-change-password]').forEach(btn => {
     btn.addEventListener('click', closePasswordModal);
   });
