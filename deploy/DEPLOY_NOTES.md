@@ -33,13 +33,13 @@ Project MyControlPanel berjalan di berbagai distro Linux via `install.sh`.
 
 | Komponen      | Windows              | WSL / Linux                                                                                                          |
 | ------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Source code   | `C:\laragon\www\cp\` | `/home/srv/cp/` atau `/opt/mycontrolpanel/`                                                                          |
+| Source code   | `C:\laragon\www\mycp\` | `/home/{APP_USER}/mycp/` atau `/opt/mycontrolpanel/`                                                                          |
 | Node server   | -                    | `/opt/mycontrolpanel/server/server.js` (port 8089)                                                                   |
 | Bash scripts  | `scripts/`           | `/opt/mycontrolpanel/scripts/`                                                                                       |
 | Site metadata | -                    | `/etc/mycontrolpanel/sites/{domain}.env`                                                                             |
 | PHP-FPM pool  | -                    | `/etc/php/{ver}/fpm/pool.d/mycp-{domain}.conf`                                                                       |
 | Nginx vhost   | -                    | `/etc/nginx/sites-available/mycp-{domain}` (Debian/Ubuntu) atau `/etc/nginx/conf.d/mycp-{domain}.conf` (RHEL/Fedora) |
-| Server log    | -                    | `/tmp/cp-server.log`                                                                                                 |
+| Server log    | -                    | `/tmp/mycp-server.log`                                                                                                 |
 
 ## Cara Install di Linux Server (Bare Metal / VPS)
 
@@ -58,35 +58,35 @@ sudo INSTALL_PHP_VERSIONS="8.1 8.2 8.3 8.4" bash install.sh
 ```bash
 # 1. Buka terminal WSL Ubuntu/Debian
 # 2. Sync source dari Windows ke WSL
-wsl -e bash -lc "rsync -av --delete --exclude=node_modules --exclude=data /mnt/c/laragon/www/cp/ /home/srv/cp/"
+wsl -e bash -lc "rsync -av --delete --exclude=node_modules --exclude=data /mnt/c/laragon/www/mycp/ /home/{APP_USER}/mycp/"
 
 # 3. Install dependencies
-sudo bash /home/srv/cp/install.sh
+sudo bash /home/{APP_USER}/mycp/install.sh
 ```
 
 ## Lokasi Penting
 
 | Komponen      | Windows              | WSL                                                |
 | ------------- | -------------------- | -------------------------------------------------- |
-| Source code   | `C:\laragon\www\cp\` | `/home/srv/cp/`                                    |
-| Node server   | -                    | `/home/srv/cp/server/server.js` (port 8089)           |
-| Bash scripts  | `scripts/`           | `/home/srv/cp/scripts/`                            |
+| Source code   | `C:\laragon\www\mycp\` | `/home/{APP_USER}/mycp/`                                    |
+| Node server   | -                    | `/home/{APP_USER}/mycp/server/server.js` (port 8089)           |
+| Bash scripts  | `scripts/`           | `/home/{APP_USER}/mycp/scripts/`                            |
 | Site metadata | -                    | `/etc/mycontrolpanel/sites/{domain}.env`           |
 | PHP-FPM pool  | -                    | `/etc/php/8.4/fpm/pool.d/mycp-{domain}.conf`       |
 | Nginx vhost   | -                    | `/etc/nginx/sites-available/mycp-{domain}`         |
-| Server log    | -                    | `/tmp/cp-server.log`                               |
+| Server log    | -                    | `/tmp/mycp-server.log`                               |
 | Server PID    | -                    | `1879228` (cek dengan `pgrep -f 'node server/server'`) |
 
 ## Cara Sync Source → WSL
 
 ```bash
-wsl -e bash -lc "rsync -av --delete --exclude=node_modules --exclude=data /mnt/c/laragon/www/cp/ /home/srv/cp/"
+wsl -e bash -lc "rsync -av --delete --exclude=node_modules --exclude=data /mnt/c/laragon/www/mycp/ /home/{APP_USER}/mycp/"
 ```
 
 Atau per-file:
 
 ```bash
-wsl -e rsync -av /mnt/c/laragon/www/cp/server/ /home/srv/cp/server/
+wsl -e rsync -av /mnt/c/laragon/www/mycp/server/ /home/{APP_USER}/mycp/server/
 ```
 
 ## Cara Start/Restart Server Node
@@ -96,7 +96,7 @@ wsl -e rsync -av /mnt/c/laragon/www/cp/server/ /home/srv/cp/server/
 wsl -e bash -lc "pkill -9 -f 'node server/server'"
 
 # Start server baru (background, persistent)
-wsl -e bash -lc "cd /home/srv/cp && setsid nohup npm start > /tmp/cp-server.log 2>&1 < /dev/null &"
+wsl -e bash -lc "cd /home/{APP_USER}/mycp && setsid nohup npm start > /tmp/mycp-server.log 2>&1 < /dev/null &"
 ```
 
 Verifikasi:
@@ -204,7 +204,7 @@ Output yang diharapkan:
 
 | Tujuan                 | Perintah                                      |
 | ---------------------- | --------------------------------------------- |
-| Lihat server log       | `wsl -e tail -30 /tmp/cp-server.log`          |
+| Lihat server log       | `wsl -e tail -30 /tmp/mycp-server.log`          |
 | Cek port 8089          | `wsl -e ss -tln \| grep 8089`                 |
 | Cek PHP-FPM reload     | `wsl -e sudo systemctl reload php8.4-fpm`     |
 | Test vhost syntax      | `wsl -e sudo nginx -t`                        |

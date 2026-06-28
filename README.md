@@ -72,7 +72,7 @@ sudo bash install.sh
 
 Script akan auto-detect environment:
 - **User panel** → terdeteksi dari `SUDO_USER` atau user pemilik direktori
-- **Lokasi instalasi** → `/home/{user}/cp` atau dari `pwd` jika di dalam repo
+- **Lokasi instalasi** → `/home/{user}/mycp` atau dari `pwd` jika di dalam repo
 - **PHP version** → semua versi yang tersedia di repositori distro
 
 ### Custom Install

@@ -9,7 +9,7 @@ if [ -z "${APP_DIR:-}" ]; then
   else
     # Coba deteksi dari user home
     for user_home in /home/*; do
-      [ -d "${user_home}/cp" ] && [ -f "${user_home}/cp/server/server.js" ] && { APP_DIR="${user_home}/cp"; break; }
+      [ -d "${user_home}/mycp" ] && [ -f "${user_home}/mycp/server/server.js" ] && { APP_DIR="${user_home}/mycp"; break; }
     done
   fi
 fi
