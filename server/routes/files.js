@@ -1,9 +1,13 @@
 const fs = require("fs");
+const path = require("path");
 const db = require("../models/db");
 const exec = require("../../scripts/exec");
+const config = require("../config");
 const { requireAuth } = require("../middleware/auth");
 const multer = require("multer");
-const upload = multer({ dest: "/tmp/mycp-uploads/" });
+const uploadDir = process.env.UPLOAD_DIR || config.UPLOAD_DIR || "/tmp/mycp-uploads";
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({ dest: uploadDir });
 
 module.exports = function (app) {
   app.get("/api/sites/:domain/files", requireAuth, async (req, res) => {

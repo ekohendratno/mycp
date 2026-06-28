@@ -4,6 +4,35 @@ MYCP_ETC_DIR="${MYCP_ETC_DIR:-/etc/mycontrolpanel}"
 MYCP_SITES_DIR="${MYCP_SITES_DIR:-${MYCP_ETC_DIR}/sites}"
 MYCP_NGINX_PREFIX="${MYCP_NGINX_PREFIX:-mycp-}"
 
+# Configurable paths (can be overridden via env vars)
+MYCP_HOME_PREFIX="${MYCP_HOME_PREFIX:-/home}"
+# APP_DIR dideteksi otomatis dari lokasi scripts dir jika tidak di-set
+if [ -z "${MYCP_APP_DIR:-}" ]; then
+  detected="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd || echo "/opt/mycontrolpanel")"
+  if [ -f "${detected}/server/server.js" ]; then
+    MYCP_APP_DIR="${detected}"
+  else
+    MYCP_APP_DIR="/opt/mycontrolpanel"
+  fi
+fi
+MYCP_SCRIPTS_DIR="${MYCP_SCRIPTS_DIR:-${MYCP_APP_DIR}/scripts}"
+MYCP_SOCK_DIR="${MYCP_SOCK_DIR:-/run/php-fpm}"
+MYCP_PHP_SOCK_DIR="${MYCP_PHP_SOCK_DIR:-/run/php}"
+MYCP_LOG_DIR="${MYCP_LOG_DIR:-/var/log/nginx}"
+MYCP_NGINX_DIR="${MYCP_NGINX_DIR:-/etc/nginx}"
+MYCP_PHP_CONFIG_DIR="${MYCP_PHP_CONFIG_DIR:-/etc/php}"
+MYCP_SSL_DIR="${MYCP_SSL_DIR:-${MYCP_NGINX_DIR}/ssl}"
+MYCP_MYSQL_SOCK="${MYCP_MYSQL_SOCK:-/run/mysqld/mysqld.sock}"
+MYCP_MYSQL_PID="${MYCP_MYSQL_PID:-/run/mysqld/mysqld.pid}"
+MYCP_MYSQL_RUN_DIR="${MYCP_MYSQL_RUN_DIR:-/run/mysqld}"
+MYCP_NGINX_PID="${MYCP_NGINX_PID:-/run/nginx.pid}"
+MYCP_VSFTPD_PID="${MYCP_VSFTPD_PID:-/run/vsftpd/vsftpd.pid}"
+MYCP_PHP_FPM_LOG_DIR="${MYCP_PHP_FPM_LOG_DIR:-/var/log/php-fpm}"
+MYCP_UPLOAD_DIR="${MYCP_UPLOAD_DIR:-/tmp/mycp-uploads}"
+MYCP_PMA_CONFIG_DIR="${MYCP_PMA_CONFIG_DIR:-/etc/phpmyadmin}"
+MYCP_PMA_PORT="${MYCP_PMA_PORT:-8087}"
+MYCP_PMA_ROOT="${MYCP_PMA_ROOT:-/usr/share/phpmyadmin}"
+
 log() {
   printf '[mycp] %s\n' "$*"
 }
@@ -39,7 +68,8 @@ valid_user() {
 }
 
 valid_path() {
-  [[ "${1:-}" =~ ^/home/[a-z_][a-z0-9_-]*/htdocs(/.*)?$ ]]
+  local prefix="${MYCP_HOME_PREFIX}"
+  [[ "${1:-}" =~ ^${prefix}/[a-z_][a-z0-9_-]*/htdocs(/.*)?$ ]]
 }
 
 require_domain() {
@@ -51,7 +81,7 @@ require_user() {
 }
 
 require_path() {
-  valid_path "$1" || fail "Path harus berada di /home/USER/htdocs: ${1:-}"
+  valid_path "$1" || fail "Path harus berada di ${MYCP_HOME_PREFIX}/USER/htdocs: ${1:-}"
 }
 
 site_file() {
@@ -110,13 +140,14 @@ php_fpm_socket() {
   local version="${1:-8.3}"
   local normalized="${version#PHP }"
   normalized="${normalized%% *}"
-  if [ -S "/run/php/php${normalized}-fpm.sock" ]; then
-    printf '/run/php/php%s-fpm.sock\n' "${normalized}"
+  local sock="${MYCP_PHP_SOCK_DIR}/php${normalized}-fpm.sock"
+  if [ -S "${sock}" ]; then
+    printf '%s\n' "${sock}"
     return
   fi
   local first_socket
-  first_socket="$(find /run/php -maxdepth 1 -name 'php*-fpm.sock' 2>/dev/null | head -n 1 || true)"
-  [ -n "${first_socket}" ] && printf '%s\n' "${first_socket}" || printf '/run/php/php-fpm.sock\n'
+  first_socket="$(find "${MYCP_PHP_SOCK_DIR}" -maxdepth 1 -name 'php*-fpm.sock' 2>/dev/null | head -n 1 || true)"
+  [ -n "${first_socket}" ] && printf '%s\n' "${first_socket}" || printf '%s/php-fpm.sock\n' "${MYCP_PHP_SOCK_DIR}"
 }
 
 write_site_metadata() {

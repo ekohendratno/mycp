@@ -3,11 +3,14 @@ const { execFile, execSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 
+// Load config for dynamic paths
+const config = require("../server/config");
+
 // Use canonical Linux path for scripts so sudoers NOPASSWD rules match.
 // __dirname may resolve to /mnt/c/... when server starts from Windows volume.
 let SCRIPTS_DIR = __dirname;
 if (process.platform === "linux") {
-  const candidate = "/home/srv/cp/scripts";
+  const candidate = process.env.SCRIPTS_DIR || config.SCRIPTS_DIR || "/home/srv/cp/scripts";
   if (fs.existsSync(candidate)) SCRIPTS_DIR = candidate;
 }
 const isLinux = process.platform === "linux";
@@ -158,7 +161,7 @@ async function execCreateSite(params) {
     "--ssl", mapSsl(params.ssl),
     "--ftp", mapFtp(params.ftp),
     "--clone-source", params.cloneSource ? "yes" : "no",
-    "--root", params.path || `/home/${params.username}/htdocs`,
+    "--root", params.path || `${config.MYCP_HOME_PREFIX}/${params.username}/htdocs`,
   );
   return runScript("site-create", args);
 }
@@ -433,7 +436,7 @@ function getServerStats() {
   }
 }
 
-const MYCP_SITES_DIR = "/etc/mycontrolpanel/sites";
+  const MYCP_SITES_DIR = process.env.MYCP_SITES_DIR || config.MYCP_SITES_DIR;
 
 function parseEnvFile(filePath) {
   const content = fs.readFileSync(filePath, "utf-8");
@@ -478,7 +481,7 @@ function syncSitesFromServer() {
       ssl: raw.ssl_enabled === "yes",
       ftp: raw.ftp_enabled === "yes",
       status: raw.status || "running",
-      path: raw.root_dir || `/home/${raw.username || "unknown"}/htdocs`,
+      path: raw.root_dir || `${config.MYCP_HOME_PREFIX}/${raw.username || "unknown"}/htdocs`,
       ip: getServerIp(),
       createdAt: new Date().toISOString(),
     };
@@ -621,7 +624,8 @@ function getInstalledPhpVersions() {
     return _installedPhpCache;
   }
   try {
-    const out = execSync("ls -1 /etc/php 2>/dev/null", {
+    const phpDir = process.env.MYCP_PHP_CONFIG_DIR || config.MYCP_PHP_CONFIG_DIR;
+    const out = execSync("ls -1 " + phpDir + " 2>/dev/null", {
       encoding: "utf-8",
     }).trim();
     _installedPhpCache = out ? out.split(/\s+/).filter(Boolean).sort() : [];
@@ -633,7 +637,7 @@ function getInstalledPhpVersions() {
 
 function execCommand(command, options) {
   const opts = options || {};
-  const cwd = opts.cwd || "/home/srv/cp";
+  const cwd = opts.cwd || process.env.APP_DIR || config.APP_DIR;
   const timeout = opts.timeout || 15000;
   if (!isLinux) {
     return { stdout: "(simulated: " + command + ")", stderr: "", exitCode: 0 };
@@ -668,7 +672,7 @@ function resolveActualPhpVersion(requested) {
 }
 
 function getSiteServices(domain) {
-  const MYCP_SITES_DIR = "/etc/mycontrolpanel/sites";
+const MYCP_SITES_DIR = process.env.MYCP_SITES_DIR || config.MYCP_SITES_DIR;
   const siteFile = path.join(MYCP_SITES_DIR, domain + ".env");
   let runtime = "", phpVersion = "8.4", hasDb = false, hasFtp = false;
   try {
@@ -717,18 +721,18 @@ function getSiteServices(domain) {
     } catch (e) {}
     results.push({ service: serviceKey || label, label, status: "stopped" });
   }
-  checkPidFile("/run/nginx.pid", "Nginx", "nginx");
+  checkPidFile(config.MYCP_NGINX_PID, "Nginx", "nginx");
   if (runtime.includes("php") || runtime.includes("laravel") || runtime.includes("codeigniter")) {
     var phpService = "php" + phpVersion + "-fpm";
-    var sockPath = "/run/php-fpm/mycp-" + domain + ".sock";
+    var sockPath = config.MYCP_SOCK_DIR + "/mycp-" + domain + ".sock";
     checkSocket(sockPath, "PHP " + phpVersion + " FPM", phpService);
   }
   if (runtime.includes("node")) {
-    var pm2PidPath = "/home/srv/.pm2/pids/" + domain + "-0.pid";
+    var pm2PidPath = config.MYCP_PM2_HOME + "/pids/" + domain + "-0.pid";
     checkPidFile(pm2PidPath, "PM2 (" + domain + ")", "pm2:" + domain);
   }
-  if (hasDb) checkPidFile("/run/mysqld/mysqld.pid", "MySQL (Shared)", "mysql");
-  if (hasFtp) checkPidFile("/run/vsftpd/vsftpd.pid", "FTP", "vsftpd");
+  if (hasDb) checkPidFile(config.MYCP_MYSQL_PID, "MySQL (Shared)", "mysql");
+  if (hasFtp) checkPidFile(config.MYCP_VSFTPD_PID, "FTP", "vsftpd");
   return results;
 }
 
@@ -738,7 +742,7 @@ function execServiceAction(domain, serviceName, action) {
     const appName = serviceName.slice(4);
     try {
       if (action === "start") {
-        var root = "/home/" + appName.replace(/\..*$/, "") + "/htdocs";
+        var root = config.MYCP_HOME_PREFIX + "/" + appName.replace(/\..*$/, "") + "/htdocs";
         execSync("pm2 start " + root + "/server.js --name " + appName + " -f 2>&1", { timeout: 15000, encoding: "utf-8", maxBuffer: 1024 * 1024 });
       } else if (action === "stop") {
         execSync("pm2 stop " + appName + " 2>&1", { timeout: 10000, encoding: "utf-8", maxBuffer: 1024 * 1024 });
@@ -755,11 +759,12 @@ function execServiceAction(domain, serviceName, action) {
   try {
     if (action === "start") {
       if (isNginx) {
-        execSync("sudo -n /usr/sbin/nginx 2>&1", { timeout: 10000, encoding: "utf-8" });
+        execSync("sudo -n " + (process.env.MYCP_NGINX_BIN || "nginx") + " 2>&1", { timeout: 10000, encoding: "utf-8" });
       } else if (isPhp) {
-        execSync("sudo -n /usr/sbin/" + serviceName + " --fpm-config /etc/php/" + serviceName.replace("php", "").replace("-fpm", "") + "/fpm/php-fpm.conf 2>&1", { timeout: 10000, encoding: "utf-8" });
+        var phpVer = serviceName.replace("php", "").replace("-fpm", "");
+        execSync("sudo -n " + (process.env.MYCP_SERVICE_BIN || "/usr/sbin/service") + " " + serviceName + " start 2>&1", { timeout: 10000, encoding: "utf-8" });
       } else {
-        execSync("sudo -n /usr/sbin/service " + serviceName + " start 2>&1", { timeout: 15000, encoding: "utf-8" });
+        execSync("sudo -n " + (process.env.MYCP_SERVICE_BIN || "/usr/sbin/service") + " " + serviceName + " start 2>&1", { timeout: 15000, encoding: "utf-8" });
       }
     } else if (action === "stop") {
       if (isNginx) {
@@ -767,15 +772,15 @@ function execServiceAction(domain, serviceName, action) {
       } else if (isPhp) {
         execSync("sudo -n pkill " + serviceName + " 2>&1", { timeout: 10000, encoding: "utf-8" });
       } else {
-        execSync("sudo -n /usr/sbin/service " + serviceName + " stop 2>&1", { timeout: 15000, encoding: "utf-8" });
+        execSync("sudo -n " + (process.env.MYCP_SERVICE_BIN || "/usr/sbin/service") + " " + serviceName + " stop 2>&1", { timeout: 15000, encoding: "utf-8" });
       }
     } else if (action === "restart") {
       if (isNginx) {
-        execSync("sudo -n /usr/sbin/service nginx restart 2>&1", { timeout: 15000, encoding: "utf-8" });
+        execSync("sudo -n " + (process.env.MYCP_SERVICE_BIN || "/usr/sbin/service") + " nginx restart 2>&1", { timeout: 15000, encoding: "utf-8" });
       } else if (isPhp) {
-        execSync("sudo -n /usr/sbin/service " + serviceName + " restart 2>&1", { timeout: 15000, encoding: "utf-8" });
+        execSync("sudo -n " + (process.env.MYCP_SERVICE_BIN || "/usr/sbin/service") + " " + serviceName + " restart 2>&1", { timeout: 15000, encoding: "utf-8" });
       } else {
-        execSync("sudo -n /usr/sbin/service " + serviceName + " restart 2>&1", { timeout: 15000, encoding: "utf-8" });
+        execSync("sudo -n " + (process.env.MYCP_SERVICE_BIN || "/usr/sbin/service") + " " + serviceName + " restart 2>&1", { timeout: 15000, encoding: "utf-8" });
       }
     }
     return { ok: true };

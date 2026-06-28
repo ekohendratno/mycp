@@ -29,7 +29,8 @@ function slugFromDomain(domain) {
 }
 
 function rootFromUsername(username) {
-  return `/home/${username || "username"}/htdocs`;
+  var prefix = (window.MyCP && window.MyCP.HOME_PREFIX) || "/home";
+  return prefix + "/" + (username || "username") + "/htdocs";
 }
 
 function updateVersionOptions() {
@@ -99,7 +100,7 @@ async function renderSites() {
         <td>
           <button class="ghost-btn compact-action" type="button" data-index="${realIndex}" title="Detail"><i class="fa-regular fa-eye"></i></button>
           <button class="ghost-btn compact-action preview-btn" type="button" data-domain="${site.domain}" title="Preview"><i class="fa-regular fa-window-restore"></i></button>
-          <button class="ghost-btn compact-action terminal-btn" type="button" data-path="${site.path || '/home/' + site.username + '/htdocs'}" title="Terminal"><i class="fa-solid fa-terminal" style="color:#6366f1"></i></button>
+          <button class="ghost-btn compact-action terminal-btn" type="button" data-path="${site.path || rootFromUsername(site.username)}" title="Terminal"><i class="fa-solid fa-terminal" style="color:#6366f1"></i></button>
           <button class="ghost-btn compact-action delete-btn" type="button" data-index="${realIndex}" title="Hapus" style="color:#f87171"><i class="fa-regular fa-trash-can"></i></button>
         </td>
       </tr>

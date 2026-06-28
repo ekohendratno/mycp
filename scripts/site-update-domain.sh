@@ -26,7 +26,7 @@ require_domain "${NEW_DOMAIN}"
 require_path "${ROOT_DIR}"
 
 if [ "${NEW_DOMAIN}" != "${DOMAIN}" ]; then
-  rm -f "/etc/nginx/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}" "/etc/nginx/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
+  rm -f "${MYCP_NGINX_DIR}/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}" "${MYCP_NGINX_DIR}/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
   rm -f "$(site_file "${DOMAIN}")"
 fi
 

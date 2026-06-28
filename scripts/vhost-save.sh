@@ -31,7 +31,7 @@ done
 require_root
 require_domain "${DOMAIN}"
 
-CONF_PATH="/etc/nginx/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
+CONF_PATH="${MYCP_NGINX_DIR}/sites-available/${MYCP_NGINX_PREFIX}${DOMAIN}"
 
 if [ -n "${READ_ONLY}" ]; then
   [ -f "${CONF_PATH}" ] || { echo "# Vhost not found"; exit 0; }
@@ -44,13 +44,14 @@ if [ -z "${ROOT_DIR}" ]; then
   if [ -z "${USERNAME}" ]; then
     fail "--root atau --username wajib diisi"
   fi
-  ROOT_DIR="/home/${USERNAME}/htdocs"
+  ROOT_DIR="${MYCP_HOME_PREFIX}/${USERNAME}/htdocs"
 fi
-# Sanity check: ROOT_DIR harus berada di bawah /home/<username>/htdocs (kalau username ada)
+# Sanity check: ROOT_DIR harus berada di bawah home/<username>/htdocs (kalau username ada)
 if [ -n "${USERNAME}" ]; then
+  local expected="${MYCP_HOME_PREFIX}/${USERNAME}/htdocs"
   case "${ROOT_DIR}" in
-    "/home/${USERNAME}/htdocs"|"/home/${USERNAME}/htdocs"/*) ;;
-    *) fail "ROOT_DIR (${ROOT_DIR}) tidak konsisten dengan USERNAME (${USERNAME}); harus /home/${USERNAME}/htdocs[/...]" ;;
+    "${expected}"|"${expected}"/*) ;;
+    *) fail "ROOT_DIR (${ROOT_DIR}) tidak konsisten dengan USERNAME (${USERNAME}); harus ${expected}[/...]" ;;
   esac
 fi
 
@@ -61,7 +62,7 @@ if [ "${RUNTIME}" = "laravel" ] || [ "${RUNTIME}" = "ci4" ]; then
   ROOT_DIR="${ROOT_DIR}/public"
 fi
 
-ENABLED_PATH="/etc/nginx/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}"
+ENABLED_PATH="${MYCP_NGINX_DIR}/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}"
 
 if [ -n "${CUSTOM_CONFIG}" ]; then
   [ -f "${CUSTOM_CONFIG}" ] || fail "File vhost tidak ditemukan: ${CUSTOM_CONFIG}"
@@ -71,7 +72,7 @@ else
     php|laravel|codeigniter|ci4|ci3)
       # Prioritaskan socket pool per-site (mycp-<domain>.sock) kalau tersedia,
       # fallback ke socket global jika pool belum dibuat.
-      POOL_SOCKET="/run/php-fpm/mycp-${DOMAIN}.sock"
+      POOL_SOCKET="${MYCP_SOCK_DIR}/mycp-${DOMAIN}.sock"
       # Tunggu sebentar kalau socket belum muncul (FPM mungkin masih reload)
       for i in 1 2 3; do
         [ -S "${POOL_SOCKET}" ] && break
@@ -91,8 +92,8 @@ server {
 
     root ${ROOT_DIR};
 
-    access_log /var/log/nginx/${DOMAIN}.access.log;
-    error_log /var/log/nginx/${DOMAIN}.error.log;
+    access_log ${MYCP_LOG_DIR}/${DOMAIN}.access.log;
+    error_log ${MYCP_LOG_DIR}/${DOMAIN}.error.log;
 
     location / {
         proxy_pass http://127.0.0.1:8088;
@@ -160,8 +161,8 @@ server {
     listen [::]:80;
     server_name ${DOMAIN} www.${DOMAIN};
 
-    access_log /var/log/nginx/${DOMAIN}.access.log;
-    error_log /var/log/nginx/${DOMAIN}.error.log;
+    access_log ${MYCP_LOG_DIR}/${DOMAIN}.access.log;
+    error_log ${MYCP_LOG_DIR}/${DOMAIN}.error.log;
 
     location / {
         proxy_pass http://127.0.0.1:${APP_PORT};
@@ -186,8 +187,8 @@ server {
     root ${ROOT_DIR};
     index index.html;
 
-    access_log /var/log/nginx/${DOMAIN}.access.log;
-    error_log /var/log/nginx/${DOMAIN}.error.log;
+    access_log ${MYCP_LOG_DIR}/${DOMAIN}.access.log;
+    error_log ${MYCP_LOG_DIR}/${DOMAIN}.error.log;
 
     location / {
         try_files \$uri \$uri/ =404;

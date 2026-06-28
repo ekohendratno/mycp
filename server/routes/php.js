@@ -1,3 +1,4 @@
+const config = require("../config");
 const db = require("../models/db");
 const exec = require("../../scripts/exec");
 const { requireAuth } = require("../middleware/auth");
@@ -8,7 +9,7 @@ module.exports = function (app) {
     if (!site) return res.status(404).json({ error: "Site tidak ditemukan" });
     try {
       const result = await exec.execReadPhpini(req.params.domain, site.version);
-      res.json({ raw: result.stdout || "", version: site.version, socket: `/run/php-fpm/mycp-${req.params.domain}.sock` });
+      res.json({ raw: result.stdout || "", version: site.version, socket: `${config.MYCP_SOCK_DIR}/mycp-${req.params.domain}.sock` });
     } catch (e) {
       res.status(500).json({ error: "Gagal membaca konfigurasi PHP: " + (e.stderr || e.message) });
     }

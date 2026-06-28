@@ -45,7 +45,7 @@ require_domain "${DOMAIN}"
 require_user "${USERNAME}"
 
 [ -n "${PASSWORD}" ] || fail "--password wajib diisi"
-[ -n "${ROOT_DIR}" ] || ROOT_DIR="/home/${USERNAME}/htdocs"
+[ -n "${ROOT_DIR}" ] || ROOT_DIR="${MYCP_HOME_PREFIX}/${USERNAME}/htdocs"
 require_path "${ROOT_DIR}"
 
 if id "${USERNAME}" >/dev/null 2>&1; then
@@ -57,9 +57,9 @@ fi
 echo "${USERNAME}:${PASSWORD}" | chpasswd
 usermod -aG www-data "${USERNAME}" || true
 mkdir -p "${ROOT_DIR}"
-mkdir -p "/home/${USERNAME}/tmp"
-chown -R "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
-chmod 755 "/home/${USERNAME}" "${ROOT_DIR}" "/home/${USERNAME}/tmp"
+mkdir -p "${MYCP_HOME_PREFIX}/${USERNAME}/tmp"
+chown -R "${USERNAME}:${USERNAME}" "${MYCP_HOME_PREFIX}/${USERNAME}"
+chmod 755 "${MYCP_HOME_PREFIX}/${USERNAME}" "${ROOT_DIR}" "${MYCP_HOME_PREFIX}/${USERNAME}/tmp"
 
 if [ "${CLONE_SOURCE}" = "yes" ]; then
   case "${RUNTIME}" in
@@ -200,7 +200,7 @@ if [ "${CLONE_SOURCE}" = "yes" ]; then
       PHP_MAJOR="$(echo ${PHP_VERSION} | cut -d. -f1)"
       PHP_MINOR="$(echo ${PHP_VERSION} | cut -d. -f2)"
       if [ "${PHP_MAJOR}" -gt 8 ] || { [ "${PHP_MAJOR}" = "8" ] && [ "${PHP_MINOR}" -ge 4 ]; }; then
-        POOL_CONF="/etc/php/${PHP_VERSION}/fpm/pool.d/mycp-${DOMAIN}.conf"
+        POOL_CONF="${MYCP_PHP_CONFIG_DIR}/${PHP_VERSION}/fpm/pool.d/mycp-${DOMAIN}.conf"
         if [ -f "${POOL_CONF}" ] && ! grep -q 'opcache.enable' "${POOL_CONF}"; then
           echo "php_admin_flag[opcache.enable] = off" >> "${POOL_CONF}"
           systemctl reload "php${PHP_VERSION}-fpm" 2>/dev/null || true
@@ -218,26 +218,26 @@ if [ "${CLONE_SOURCE}" = "yes" ]; then
 fi
 
 # 2. Verifikasi FPM socket
-POOL_SOCKET="/run/php-fpm/mycp-${DOMAIN}.sock"
+POOL_SOCKET="${MYCP_SOCK_DIR}/mycp-${DOMAIN}.sock"
 if [ ! -S "${POOL_SOCKET}" ]; then
   log "WARNING: FPM socket ${POOL_SOCKET} belum ada, reload FPM..."
   FPM_MASTER_PID="$(systemctl show -p MainPID "php${PHP_VERSION}-fpm" 2>/dev/null | sed 's/MainPID=//')"
   if [ -z "${FPM_MASTER_PID}" ] || [ "${FPM_MASTER_PID}" = "0" ]; then
-    FPM_MASTER_PID="$(ps aux | grep "php-fpm: master.*/etc/php/${PHP_VERSION}/fpm/" | grep -v grep | awk '{print $2}' | head -1)"
+    FPM_MASTER_PID="$(ps aux | grep "php-fpm: master.*${MYCP_PHP_CONFIG_DIR}/${PHP_VERSION}/fpm/" | grep -v grep | awk '{print $2}' | head -1)"
   fi
   if [ -n "${FPM_MASTER_PID}" ] && [ "${FPM_MASTER_PID}" != "0" ]; then
     kill -USR2 "${FPM_MASTER_PID}" 2>/dev/null || true
     sleep 2
   fi
   if [ ! -S "${POOL_SOCKET}" ]; then
-    rm -f "${POOL_SOCKET}" "/run/php/php${PHP_VERSION}-fpm.sock" 2>/dev/null || true
+    rm -f "${POOL_SOCKET}" "${MYCP_PHP_SOCK_DIR}/php${PHP_VERSION}-fpm.sock" 2>/dev/null || true
     systemctl restart "php${PHP_VERSION}-fpm" 2>/dev/null || true
     sleep 2
   fi
 fi
 
 # 3. Verifikasi nginx socket
-VHOST_FILE="/etc/nginx/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}"
+VHOST_FILE="${MYCP_NGINX_DIR}/sites-enabled/${MYCP_NGINX_PREFIX}${DOMAIN}"
 if [ -f "${VHOST_FILE}" ]; then
   CURRENT_SOCKET="$(grep 'fastcgi_pass' "${VHOST_FILE}" 2>/dev/null | grep -oP 'unix:\K[^;]+' 2>/dev/null || true)"
   if [ -n "${CURRENT_SOCKET}" ] && [ "${CURRENT_SOCKET}" != "${POOL_SOCKET}" ] && [ -S "${POOL_SOCKET}" ]; then

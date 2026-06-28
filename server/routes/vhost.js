@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const config = require("../config");
 const db = require("../models/db");
 const exec = require("../../scripts/exec");
 const { requireAuth } = require("../middleware/auth");
@@ -56,7 +57,7 @@ server {
         fastcgi_read_timeout 3600;
         fastcgi_send_timeout 3600;
         fastcgi_param HTTPS "on";
-        fastcgi_pass unix:/run/php-fpm/mycp-${site.domain}.sock;
+        fastcgi_pass unix:${config.MYCP_SOCK_DIR}/mycp-${site.domain}.sock;
     }
 
     if (-f $request_filename) { break; }

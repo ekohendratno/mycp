@@ -17,11 +17,14 @@ set -Eeuo pipefail
 # ============================================================
 APP_NAME="MyControlPanel"
 APP_SLUG="mycontrolpanel"
+# Catat apakah user explicit set env vars sebelum kita assign default
+APP_USER_FORCED="${APP_USER:+1}"
 APP_USER="${APP_USER:-srv}"
+APP_DIR_FORCED="${APP_DIR:+1}"
+APP_DIR="${APP_DIR:-}"
 APP_PASSWORD="${APP_PASSWORD:-srV@1234}"
-APP_DIR="${APP_DIR:-/opt/${APP_SLUG}}"
-APP_PUBLIC_DIR="${APP_PUBLIC_DIR:-${APP_DIR}/public}"
-APP_SCRIPTS_DIR="${APP_SCRIPTS_DIR:-${APP_DIR}/scripts}"
+APP_PUBLIC_DIR="${APP_PUBLIC_DIR:-}"
+APP_SCRIPTS_DIR="${APP_SCRIPTS_DIR:-}"
 NGINX_SITE="${NGINX_SITE:-${APP_SLUG}}"
 SERVER_NAME="${SERVER_NAME:-_}"
 PANEL_PORT="${PANEL_PORT:-8089}"
@@ -54,6 +57,53 @@ require_root() {
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
     fail "Jalankan dengan sudo: sudo bash install.sh"
   fi
+}
+
+# ============================================================
+# AUTO-DETECT USER & PATHS
+# ============================================================
+detect_environment() {
+  # Jika APP_USER belum di-set secara eksplisit, deteksi otomatis
+  if [ -z "${APP_USER_FORCED:-}" ]; then
+    local detected_user=""
+
+    # Coba deteksi dari SUDO_USER (user asli sebelum sudo)
+    if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+      detected_user="${SUDO_USER}"
+    # Coba deteksi dari pemilik direktori tempat script dijalankan
+    elif [ -d "/home" ]; then
+      local cwd
+      cwd="$(pwd)"
+      local cwd_user
+      cwd_user="$(echo "${cwd}" | sed -n 's|^/home/\([^/]*\).*|\1|p')"
+      if [ -n "${cwd_user}" ] && id "${cwd_user}" >/dev/null 2>&1; then
+        detected_user="${cwd_user}"
+      fi
+    fi
+
+    if [ -n "${detected_user}" ]; then
+      APP_USER="${detected_user}"
+    fi
+  fi
+
+  # Jika APP_DIR belum di-set, deteksi dari lokasi script atau home user
+  if [ -z "${APP_DIR_FORCED:-}" ]; then
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || pwd)"
+
+    # Jika script dijalankan dari dalam repo panel (ada server/server.js)
+    if [ -f "${script_dir}/server/server.js" ]; then
+      APP_DIR="${script_dir}"
+    elif [ -f "$(pwd)/server/server.js" ]; then
+      APP_DIR="$(pwd)"
+    else
+      APP_DIR="/home/${APP_USER}/cp"
+    fi
+  fi
+
+  # Export ulang biar terdeteksi
+  APP_PUBLIC_DIR="${APP_PUBLIC_DIR:-${APP_DIR}/public}"
+  APP_SCRIPTS_DIR="${APP_SCRIPTS_DIR:-${APP_DIR}/scripts}"
 }
 
 # ============================================================
@@ -653,7 +703,7 @@ allow_writeable_chroot=YES
 pasv_min_port=50000
 pasv_max_port=50100
 user_sub_token=\$USER
-local_root=/home/\$USER/htdocs
+  local_root=${MYCP_HOME_PREFIX:-/home}/\$USER/htdocs
 seccomp_sandbox=NO
 FTP
 
@@ -1063,6 +1113,7 @@ print_done() {
 main() {
   require_root
   detect_distro
+  detect_environment
   detect_service_manager
 
   # 1. Install packages (Nginx, PHP, Node, MariaDB, PostgreSQL, Redis, Fail2ban, etc)
