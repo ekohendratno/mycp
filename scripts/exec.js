@@ -206,6 +206,10 @@ async function execReadPhpini(domain, phpVersion) {
   return runScript("phpini-save", args);
 }
 
+async function execUpdatePanel() {
+  return runScript("update-panel", []);
+}
+
 async function execSavePhpini(domain, phpVersion, settings, raw, username) {
   const args = ["--domain", domain];
   if (phpVersion) args.push("--php-version", mapPhpVersion(phpVersion));
@@ -828,4 +832,5 @@ module.exports = {
   execServiceAction,
   execReadPhpini,
   execSavePhpini,
+  execUpdatePanel,
 };
