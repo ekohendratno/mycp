@@ -26,7 +26,8 @@ function runScript(scriptName, args) {
       reject(new Error(`Script not found: ${scriptPath}`));
       return;
     }
-    // Node server runs as 'srv' which has NOPASSWD for scripts/* in sudoers
+    // Ensure script is executable before sudo runs it
+    try { fs.chmodSync(scriptPath, 0o755); } catch (e) {}
     execFile(
       "sudo",
       ["-n", scriptPath, ...args],
