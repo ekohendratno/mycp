@@ -63,14 +63,17 @@ npm install --production 2>&1 || warn "npm install gagal"
 npm rebuild 2>&1 || warn "npm rebuild gagal"
 
 log "Restart service..."
-if systemctl is-active --quiet mycp-server 2>/dev/null; then
+if systemctl list-units --type=service --all 2>/dev/null | grep -q mycp-server; then
   systemctl restart mycp-server
   log "Service mycp-server restarted"
-elif systemctl is-active --quiet mycontrolpanel 2>/dev/null; then
+elif systemctl list-units --type=service --all 2>/dev/null | grep -q mycontrolpanel; then
   systemctl restart mycontrolpanel
   log "Service mycontrolpanel restarted"
+elif [ -f /etc/systemd/system/mycp-server.service ]; then
+  systemctl restart mycp-server
+  log "Service mycp-server restarted (from unit file)"
 else
-  warn "Service tidak ditemukan, restart manual diperlukan"
+  warn "Service tidak ditemukan, restart manual: sudo systemctl restart mycp-server"
 fi
 
 log "Update selesai!"
